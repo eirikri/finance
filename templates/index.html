@@ -1,0 +1,2327 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Økonomi</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0b0e1a;
+            --bg-card: #111827;
+            --bg-input: #1a2235;
+            --border: #1e2d45;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --accent: #3b82f6;
+            --green: #10b981;
+            --red: #ef4444;
+            --yellow: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 14px;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            height: 52px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; }
+
+        .tabs { display: flex; gap: 4px; }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+
+        .tab-btn:hover { background: var(--bg-input); color: var(--text); }
+        .tab-btn.active { background: var(--accent); color: #fff; }
+
+        .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 16px;
+        }
+
+        .account-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .account-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+        }
+
+        .account-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+        .account-type { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
+        .account-balance { font-size: 22px; font-weight: 700; color: var(--green); }
+        .account-balance.neg { color: var(--red); }
+
+        .stat-grid {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            flex: 1 1 0;
+            min-width: 100px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+
+        .stat-card:hover { border-color: var(--accent); }
+        .stat-card.active { border-color: var(--accent); background: rgba(59,130,246,.08); }
+
+        .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px; }
+        .stat-value { font-size: 15px; font-weight: 700; }
+        .stat-value.green { color: var(--green); }
+        .stat-value.red { color: var(--red); }
+
+        .month-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+
+        .month-nav button {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text);
+            width: 30px; height: 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex; align-items: center; justify-content: center;
+            transition: border-color 0.15s;
+        }
+
+        .month-nav button:hover { border-color: var(--accent); }
+
+        .month-label { font-size: 15px; font-weight: 600; min-width: 130px; text-align: center; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+        .form-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; }
+
+        input, select {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s;
+            width: 100%;
+        }
+
+        input:focus, select:focus { border-color: var(--accent); }
+        select option { background: var(--bg-card); }
+
+        .toggle-group {
+            display: flex;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            height: 36px;
+        }
+
+        .toggle-option {
+            flex: 1; text-align: center; cursor: pointer;
+            font-size: 12px; font-weight: 500; color: var(--muted);
+            transition: all 0.15s; border: none; background: none;
+        }
+
+        .toggle-option.active { background: var(--accent); color: #fff; }
+
+        .btn {
+            background: var(--accent); color: #fff; border: none;
+            padding: 8px 18px; border-radius: 6px; cursor: pointer;
+            font-size: 13px; font-weight: 500; transition: opacity 0.15s;
+        }
+
+        .btn:hover { opacity: 0.85; }
+
+        .btn-sm {
+            padding: 3px 9px; font-size: 12px;
+            background: var(--bg-input); border: 1px solid var(--border);
+            color: var(--muted); border-radius: 5px; cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-sm:hover { border-color: var(--red); color: var(--red); }
+
+        .btn-sm.edit:hover { border-color: var(--accent); color: var(--accent); }
+
+        .btn-ghost {
+            background: var(--bg-input); border: 1px solid var(--border);
+            color: var(--text); padding: 6px 14px; border-radius: 6px;
+            cursor: pointer; font-size: 13px;
+            display: inline-flex; align-items: center; gap: 6px;
+            transition: border-color 0.15s; margin-bottom: 14px;
+        }
+
+        .btn-ghost:hover { border-color: var(--accent); }
+
+        table { width: 100%; border-collapse: collapse; }
+
+        th {
+            text-align: left; font-size: 11px; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 0.8px;
+            padding: 10px 12px; border-bottom: 1px solid var(--border);
+        }
+
+        td { padding: 10px 12px; border-bottom: 1px solid rgba(30,45,69,.5); font-size: 13px; }
+
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(59,130,246,.04); }
+
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+        .badge-green { background: rgba(16,185,129,.15); color: var(--green); }
+        .badge-red   { background: rgba(239,68,68,.15);  color: var(--red); }
+        .badge-blue  { background: rgba(59,130,246,.12); color: var(--accent); }
+        .badge-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
+        .badge-muted { background: rgba(100,116,139,.15); color: var(--muted); }
+
+        .pos { color: var(--green); }
+        .neg { color: var(--red); }
+
+        .section-heading { font-size: 14px; font-weight: 600; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+
+        .collapsible { display: none; }
+        .collapsible.open { display: block; }
+
+        .empty { text-align: center; color: var(--muted); padding: 28px; font-size: 13px; }
+
+        .section-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
+
+        /* Edit modal */
+        .modal-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,.65);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.open { display: flex; }
+
+        .modal-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            width: 100%;
+            max-width: 720px;
+            margin: 24px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title { font-size: 15px; font-weight: 600; }
+
+        .modal-close {
+            background: none; border: none; color: var(--muted);
+            font-size: 22px; cursor: pointer; line-height: 1; padding: 0 4px;
+        }
+
+        .modal-close:hover { color: var(--text); }
+
+        /* Investment P&L */
+        .inv-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+        .inv-meta .pnl { font-weight: 600; }
+        .inv-meta .pnl.pos { color: var(--green); }
+        .inv-meta .pnl.neg { color: var(--red); }
+        .account-update-btn {
+            display: block; margin-top: 10px; width: 100%;
+            background: var(--bg-input); border: 1px solid var(--border);
+            color: var(--muted); padding: 4px 10px; border-radius: 5px;
+            font-size: 11px; cursor: pointer; transition: all 0.15s;
+        }
+        .account-update-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Historikk / trends */
+        .trends-wrap { overflow-x: auto; }
+        .trends-wrap table { min-width: 500px; }
+        .trends-wrap th:first-child,
+        .trends-wrap td:first-child { position: sticky; left: 0; background: var(--bg-card); z-index: 1; }
+        .delta { font-size: 11px; margin-left: 4px; }
+        .delta.pos { color: var(--green); }
+        .delta.neg { color: var(--red); }
+        .snap-del-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+
+        /* Monthly checkbox */
+        .monthly-check-row {
+            display: flex; align-items: center; gap: 8px;
+            margin-bottom: 14px; cursor: pointer;
+        }
+        .monthly-check-row input[type="checkbox"] {
+            width: 15px; height: 15px; accent-color: var(--accent);
+            cursor: pointer; flex-shrink: 0;
+        }
+        .monthly-check-row span { font-size: 13px; color: var(--text); }
+
+        /* Budget progress */
+        .budget-bar-wrap { margin-bottom: 14px; }
+        .budget-bar-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+        .budget-bar-label .budget-cat { font-weight: 500; }
+        .budget-bar-label .budget-amounts { color: var(--muted); font-family: var(--font-mono, monospace); }
+        .budget-bar-outer { height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden; }
+        .budget-bar-inner { height: 100%; border-radius: 4px; transition: width 0.4s; }
+        .budget-bar-inner.ok  { background: var(--green); }
+        .budget-bar-inner.warn { background: var(--yellow); }
+        .budget-bar-inner.over { background: var(--red); }
+
+        /* Reconciliation */
+        .recon-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(30,45,69,.4); font-size: 13px; }
+        .recon-row:last-child { border-bottom: none; }
+        .recon-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .recon-dot.ok  { background: var(--green); }
+        .recon-dot.miss { background: var(--red); }
+        .recon-dot.future { background: var(--yellow); }
+        .recon-name { flex: 1; }
+        .recon-day  { color: var(--muted); font-size: 11px; min-width: 50px; }
+        .recon-amt  { font-family: var(--font-mono, monospace); font-size: 13px; }
+
+        /* Tab toggles inside a tab */
+        .inner-tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+        .inner-tab { background: var(--bg-input); border: 1px solid var(--border); color: var(--muted); padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.15s; }
+        .inner-tab:hover { color: var(--text); }
+        .inner-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .inner-section { display: none; }
+        .inner-section.active { display: block; }
+
+        /* Net worth chart */
+        .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; position: relative; height: 280px; }
+    </style>
+</head>
+<body>
+
+<!-- ── Edit Modal ── -->
+<div id="edit-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title">Rediger transaksjon</div>
+            <button class="modal-close" onclick="closeEditModal()">×</button>
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Dato</label>
+                <input type="date" id="edit-date">
+            </div>
+            <div class="form-group">
+                <label>Beskrivelse</label>
+                <input type="text" id="edit-desc">
+            </div>
+            <div class="form-group">
+                <label>Konto</label>
+                <select id="edit-account"><option value="">Ingen</option></select>
+            </div>
+            <div class="form-group">
+                <label>Beløp (NOK)</label>
+                <input type="number" id="edit-amount" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Retning</label>
+                <div class="toggle-group">
+                    <button class="toggle-option" id="edit-dir-expense" onclick="setEditDir('expense')">Utgift</button>
+                    <button class="toggle-option" id="edit-dir-income" onclick="setEditDir('income')">Inntekt</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <div class="toggle-group">
+                    <button class="toggle-option" id="edit-type-variable" onclick="setEditType('variable')">Variabel</button>
+                    <button class="toggle-option" id="edit-type-recurring" onclick="setEditType('recurring')">Fast</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Nødvendig</label>
+                <div class="toggle-group">
+                    <button class="toggle-option" id="edit-nec-no" onclick="setEditNec(false)">Nei</button>
+                    <button class="toggle-option" id="edit-nec-yes" onclick="setEditNec(true)">Ja</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Kategori</label>
+                <select id="edit-category" onchange="onEditCategoryChange()">
+                    <option value="">Ingen</option>
+                    <option value="__new__">+ Legg til ny…</option>
+                </select>
+                <input type="text" id="edit-category-new" placeholder="Nytt kategorinavn" style="display:none; margin-top:6px">
+            </div>
+        </div>
+        <label class="monthly-check-row" style="margin-top:4px">
+            <input type="checkbox" id="edit-monthly">
+            <span>Månedlig utgift</span>
+        </label>
+        <div style="display:flex; gap:8px; margin-top:4px;">
+            <button class="btn" onclick="saveEdit()">Lagre</button>
+            <button class="btn-ghost" onclick="closeEditModal()" style="margin-bottom:0">Avbryt</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── CSV Import Modal ── -->
+<div id="csv-modal" class="modal-overlay">
+    <div class="modal-box" style="max-width:700px">
+        <div class="modal-header">
+            <div class="modal-title">Importer CSV fra bank</div>
+            <button class="modal-close" onclick="closeCsvModal()">×</button>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Lim inn CSV-eksport fra banken din. Format: én transaksjon per linje, semikolon- eller kommaseparert. Første linje kan være header.</p>
+        <div class="form-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+            <div class="form-group">
+                <label>Dato-kolonne (0-basert)</label>
+                <input type="number" id="csv-col-date" value="0" min="0" style="width:100%">
+            </div>
+            <div class="form-group">
+                <label>Beskrivelse-kolonne</label>
+                <input type="number" id="csv-col-desc" value="1" min="0" style="width:100%">
+            </div>
+            <div class="form-group">
+                <label>Beløp-kolonne</label>
+                <input type="number" id="csv-col-amt" value="2" min="0" style="width:100%">
+            </div>
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+            <div class="form-group">
+                <label>Konto</label>
+                <select id="csv-account"><option value="">Ingen</option></select>
+            </div>
+            <div class="form-group">
+                <label>Dato-format</label>
+                <select id="csv-date-fmt">
+                    <option value="dd.mm.yyyy">DD.MM.YYYY</option>
+                    <option value="yyyy-mm-dd">YYYY-MM-DD</option>
+                    <option value="dd/mm/yyyy">DD/MM/YYYY</option>
+                </select>
+            </div>
+        </div>
+        <textarea id="csv-input" placeholder="Lim inn CSV her..." style="width:100%;height:120px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px;font-family:monospace;font-size:12px;resize:vertical;outline:none" oninput="parseCsvPreview()"></textarea>
+        <div id="csv-preview" style="margin-top:12px;overflow-x:auto;max-height:200px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
+            <button class="btn" onclick="importCsv()" id="csv-import-btn" disabled>Importer</button>
+            <button class="btn-ghost" onclick="closeCsvModal()" style="margin-bottom:0">Avbryt</button>
+            <span id="csv-status" style="font-size:12px;color:var(--muted);margin-left:8px"></span>
+        </div>
+    </div>
+</div>
+
+<!-- ── Mark-to-Market Modal ── -->
+<div id="mktval-modal" class="modal-overlay">
+    <div class="modal-box" style="max-width:420px">
+        <div class="modal-header">
+            <div class="modal-title" id="mktval-title">Oppdater saldo</div>
+            <button class="modal-close" onclick="closeMktModal()">×</button>
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="form-group">
+                <label>Ny markedsverdi (NOK)</label>
+                <input type="number" id="mktval-balance" placeholder="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Totalt innskutt (NOK)</label>
+                <input type="number" id="mktval-deposits" placeholder="0" step="0.01">
+                <span style="font-size:11px;color:var(--muted);margin-top:4px;display:block">P&L = Markedsverdi − Innskutt</span>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="btn" onclick="saveMktVal()">Lagre</button>
+            <button class="btn-ghost" onclick="closeMktModal()" style="margin-bottom:0">Avbryt</button>
+        </div>
+    </div>
+</div>
+
+<div class="header">
+    <h1>Økonomi</h1>
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">Oversikt</button>
+        <button class="tab-btn" data-tab="transactions" onclick="switchTab('transactions')">Transaksjoner</button>
+        <button class="tab-btn" data-tab="budsjett" onclick="switchTab('budsjett')">Budsjett</button>
+        <button class="tab-btn" data-tab="historikk" onclick="switchTab('historikk')">Historikk</button>
+        <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">Innstillinger</button>
+    </div>
+</div>
+
+<div class="main">
+
+    <!-- ── OVERSIKT ── -->
+    <div id="tab-overview" class="tab-content active">
+        <div class="month-nav">
+            <button onclick="changeMonth(-1)">&#8249;</button>
+            <span class="month-label" id="month-label"></span>
+            <button onclick="changeMonth(1)">&#8250;</button>
+        </div>
+
+        <div class="section-label">Kontoer</div>
+        <div class="account-grid" id="overview-accounts">
+            <div class="empty">Laster…</div>
+        </div>
+
+        <div class="section-label" style="margin-top:4px">Månedsoversikt</div>
+        <div class="stat-grid" id="overview-stats"></div>
+
+        <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:0" onclick="toggleRecurring()">
+                <div class="card-title" style="margin-bottom:0">Faste utgifter</div>
+                <span id="recurring-chevron" style="color:var(--muted);font-size:12px">▶</span>
+            </div>
+            <div id="overview-recurring-wrap" style="margin-top:14px;display:none">
+                <div id="overview-recurring"><div class="empty">Laster…</div></div>
+            </div>
+        </div>
+
+        <div class="card" id="overview-projection-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:0" onclick="toggleProjection()">
+                <div class="card-title" style="margin-bottom:0">Prognose månedsslutt</div>
+                <span id="projection-chevron" style="color:var(--muted);font-size:12px">▶</span>
+            </div>
+            <div id="overview-projection-wrap" style="margin-top:14px;display:none">
+                <div id="overview-projection"><div class="empty">Laster…</div></div>
+            </div>
+        </div>
+
+        <div class="card" id="overview-charts-card" style="display:none">
+            <div class="card-title">Forbruksoversikt</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:24px">
+                <div>
+                    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;text-align:center">Etter kategori</div>
+                    <div style="position:relative;height:180px"><canvas id="chart-category"></canvas></div>
+                </div>
+                <div>
+                    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;text-align:center">Fast / Variabel</div>
+                    <div style="position:relative;height:180px"><canvas id="chart-type"></canvas></div>
+                </div>
+                <div>
+                    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;text-align:center">Nødvendig / Unødvendig</div>
+                    <div style="position:relative;height:180px"><canvas id="chart-nec"></canvas></div>
+                </div>
+            </div>
+            <div class="card-title">Kategorier</div>
+            <table>
+                <thead><tr>
+                    <th>Kategori</th>
+                    <th style="text-align:right">Transaksjoner</th>
+                    <th style="text-align:right">Total</th>
+                </tr></thead>
+                <tbody id="category-breakdown-body">
+                    <tr><td colspan="3" class="empty">Ingen data</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card" id="overview-txn-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <div class="card-title" style="margin-bottom:0">Transaksjoner</div>
+                <button class="btn-sm" onclick="clearOverviewFilters()">Nullstill filtre</button>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+                <select id="ov-dir" onchange="renderOverviewTxns()" style="flex:1;min-width:120px">
+                    <option value="">Alle retninger</option>
+                    <option value="income">Inntekt</option>
+                    <option value="expense">Utgift</option>
+                </select>
+                <select id="ov-type" onchange="renderOverviewTxns()" style="flex:1;min-width:120px">
+                    <option value="">Alle typer</option>
+                    <option value="recurring">Fast</option>
+                    <option value="variable">Variabel</option>
+                </select>
+                <select id="ov-nec" onchange="renderOverviewTxns()" style="flex:1;min-width:120px">
+                    <option value="">Nødvendig: alle</option>
+                    <option value="1">Nødvendig</option>
+                    <option value="0">Unødvendig</option>
+                </select>
+                <select id="ov-monthly" onchange="renderOverviewTxns()" style="flex:1;min-width:120px">
+                    <option value="">Månedlig: alle</option>
+                    <option value="1">Månedlig</option>
+                    <option value="0">Ikke månedlig</option>
+                </select>
+                <select id="ov-cat" onchange="renderOverviewTxns()" style="flex:1;min-width:120px">
+                    <option value="">Alle kategorier</option>
+                </select>
+            </div>
+            <table>
+                <thead><tr>
+                    <th>Dato</th><th>Beskrivelse</th><th>Kategori</th>
+                    <th>Konto</th><th>Type</th><th>Nødvendig</th>
+                    <th style="text-align:right">Beløp</th><th></th>
+                </tr></thead>
+                <tbody id="overview-txn-body">
+                    <tr><td colspan="8" class="empty">Ingen transaksjoner</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── TRANSAKSJONER ── -->
+    <div id="tab-transactions" class="tab-content">
+        <div class="card">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn-ghost" onclick="toggleForm('add-txn-form', this)">
+                <span>+</span> Legg til transaksjon
+            </button>
+            <button class="btn-ghost" onclick="openCsvModal()">
+                <span>↑</span> Importer CSV
+            </button>
+            </div>
+            <div id="add-txn-form" class="collapsible">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Dato</label>
+                        <input type="date" id="txn-date">
+                    </div>
+                    <div class="form-group">
+                        <label>Beskrivelse</label>
+                        <input type="text" id="txn-desc" placeholder="f.eks. Netflix">
+                    </div>
+                    <div class="form-group">
+                        <label>Konto</label>
+                        <select id="txn-account"><option value="">Ingen</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Beløp (NOK)</label>
+                        <input type="number" id="txn-amount" placeholder="0" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Retning</label>
+                        <div class="toggle-group">
+                            <button class="toggle-option active" id="dir-expense" onclick="setDir('expense')">Utgift</button>
+                            <button class="toggle-option" id="dir-income" onclick="setDir('income')">Inntekt</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Type</label>
+                        <div class="toggle-group">
+                            <button class="toggle-option active" id="type-variable" onclick="setCostType('variable')">Variabel</button>
+                            <button class="toggle-option" id="type-recurring" onclick="setCostType('recurring')">Fast</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Nødvendig</label>
+                        <div class="toggle-group">
+                            <button class="toggle-option" id="nec-no" onclick="setNecessary(false)">Nei</button>
+                            <button class="toggle-option active" id="nec-yes" onclick="setNecessary(true)">Ja</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Kategori</label>
+                        <select id="txn-category" onchange="onCategoryChange()">
+                            <option value="">Ingen</option>
+                            <option value="__new__">+ Legg til ny…</option>
+                        </select>
+                        <input type="text" id="txn-category-new" placeholder="Nytt kategorinavn"
+                               style="display:none; margin-top:6px">
+                    </div>
+                </div>
+                <label class="monthly-check-row">
+                    <input type="checkbox" id="txn-monthly">
+                    <span>Månedlig utgift</span>
+                </label>
+                <button class="btn" onclick="addTransaction()">Legg til transaksjon</button>
+            </div>
+        </div>
+
+        <div class="month-nav">
+            <button onclick="changeTxnMonth(-1)">&#8249;</button>
+            <span class="month-label" id="txn-month-label"></span>
+            <button onclick="changeTxnMonth(1)">&#8250;</button>
+            <button class="btn-ghost" style="margin:0 0 0 8px; padding: 4px 10px;" onclick="setTxnAll()">Alle</button>
+        </div>
+
+        <div class="card" style="padding:0; overflow:hidden;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dato</th>
+                        <th>Beskrivelse</th>
+                        <th>Kategori</th>
+                        <th>Konto</th>
+                        <th>Type</th>
+                        <th>Nødvendig</th>
+                        <th style="text-align:right">Beløp</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="txn-body">
+                    <tr><td colspan="8" class="empty">Ingen transaksjoner</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── INNSTILLINGER ── -->
+    <div id="tab-settings" class="tab-content">
+
+        <!-- Kontoer -->
+        <div class="card">
+            <div class="section-heading">Kontoer</div>
+
+            <button class="btn-ghost" onclick="toggleForm('add-account-form', this)">
+                <span>+</span> Legg til konto
+            </button>
+            <div id="add-account-form" class="collapsible">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Navn</label>
+                        <input type="text" id="acc-name" placeholder="f.eks. Brukskonto">
+                    </div>
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="acc-type">
+                            <option value="checking">Lønnskonto</option>
+                            <option value="savings">Sparekonto</option>
+                            <option value="credit">Kredittkort</option>
+                            <option value="investment">Investering</option>
+                            <option value="cash">Kontanter</option>
+                            <option value="other">Annet</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Saldo (NOK)</label>
+                        <input type="number" id="acc-balance" placeholder="0" step="0.01">
+                    </div>
+                </div>
+                <button class="btn" onclick="addAccount()">Legg til konto</button>
+                <div style="margin-bottom:16px"></div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Navn</th><th>Type</th>
+                        <th style="text-align:right">Saldo</th><th></th>
+                    </tr>
+                </thead>
+                <tbody id="accounts-body">
+                    <tr><td colspan="4" class="empty">Ingen kontoer</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Faste utgifter -->
+        <div class="card">
+            <div class="section-heading">Faste utgifter</div>
+
+            <button class="btn-ghost" onclick="toggleForm('add-bill-form', this)">
+                <span>+</span> Legg til fast utgift
+            </button>
+            <div id="add-bill-form" class="collapsible">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Navn</label>
+                        <input type="text" id="bill-name" placeholder="f.eks. Netflix">
+                    </div>
+                    <div class="form-group">
+                        <label>Beløp (NOK)</label>
+                        <input type="number" id="bill-amount" placeholder="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Dag i måneden</label>
+                        <input type="number" id="bill-day" placeholder="1–31" min="1" max="31">
+                    </div>
+                    <div class="form-group">
+                        <label>Konto</label>
+                        <select id="bill-account"><option value="">Ingen</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nødvendig</label>
+                        <div class="toggle-group">
+                            <button class="toggle-option" id="bill-nec-no" onclick="setBillNec(false)">Nei</button>
+                            <button class="toggle-option active" id="bill-nec-yes" onclick="setBillNec(true)">Ja</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn" onclick="addBill()">Legg til</button>
+                <div style="margin-bottom:16px"></div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Navn</th><th>Dag</th><th>Konto</th>
+                        <th>Nødvendig</th>
+                        <th style="text-align:right">Beløp</th><th></th>
+                    </tr>
+                </thead>
+                <tbody id="bills-body">
+                    <tr><td colspan="6" class="empty">Ingen faste utgifter</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Overføringer -->
+        <div class="card">
+            <div class="section-heading">Overfør mellom kontoer</div>
+
+            <button class="btn-ghost" onclick="toggleForm('add-transfer-form', this)">
+                <span>+</span> Ny overføring
+            </button>
+            <div id="add-transfer-form" class="collapsible">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Dato</label>
+                        <input type="date" id="tr-date">
+                    </div>
+                    <div class="form-group">
+                        <label>Fra</label>
+                        <select id="tr-from"><option value="">Velg konto</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Til</label>
+                        <select id="tr-to"><option value="">Velg konto</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Beløp (NOK)</label>
+                        <input type="number" id="tr-amount" placeholder="0" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Beskrivelse</label>
+                        <input type="text" id="tr-desc" placeholder="Valgfritt">
+                    </div>
+                </div>
+                <button class="btn" onclick="addTransfer()">Flytt penger</button>
+                <div style="margin-bottom:16px"></div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dato</th><th>Fra</th><th>Til</th>
+                        <th>Beskrivelse</th>
+                        <th style="text-align:right">Beløp</th><th></th>
+                    </tr>
+                </thead>
+                <tbody id="transfers-body">
+                    <tr><td colspan="6" class="empty">Ingen overføringer</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── BUDSJETT ── -->
+    <div id="tab-budsjett" class="tab-content">
+        <div class="inner-tabs">
+            <button class="inner-tab active" onclick="switchBudsjettView('progress', this)">Budsjett</button>
+            <button class="inner-tab" onclick="switchBudsjettView('reconciliation', this)">Faste utgifter</button>
+        </div>
+
+        <!-- Budget progress -->
+        <div id="budsjett-progress" class="inner-section active">
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-title" style="margin-bottom:12px">Sett budsjett per kategori</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                    <div class="form-group" style="flex:1;min-width:150px">
+                        <label>Kategori</label>
+                        <select id="budget-cat-sel" style="width:100%"></select>
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:120px">
+                        <label>Månedlig budsjett (NOK)</label>
+                        <input type="number" id="budget-amount" placeholder="0" min="0" step="1" style="width:100%">
+                    </div>
+                    <button class="btn" onclick="saveBudget()" style="margin-bottom:0;align-self:flex-end">Lagre</button>
+                </div>
+            </div>
+            <div class="card">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                    <div class="card-title" style="margin-bottom:0">Forbruk vs budsjett</div>
+                    <div style="display:flex;gap:6px">
+                        <button class="inner-tab active" id="budget-view-bar" onclick="setBudgetView('bars', this)">Graf</button>
+                        <button class="inner-tab" id="budget-view-tbl" onclick="setBudgetView('table', this)">Tabell</button>
+                    </div>
+                </div>
+                <div id="budget-bars"></div>
+                <div id="budget-table" style="display:none"></div>
+            </div>
+        </div>
+
+        <!-- Reconciliation -->
+        <div id="budsjett-reconciliation" class="inner-section">
+            <div class="card" style="margin-bottom:20px">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+                    <div class="card-title" style="margin-bottom:0">Status faste utgifter</div>
+                    <div id="recon-month-nav" style="display:flex;align-items:center;gap:8px">
+                        <button class="month-nav" onclick="changeReconMonth(-1)" style="width:28px;height:28px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:6px;cursor:pointer;font-size:14px">‹</button>
+                        <span id="recon-month-label" style="font-size:14px;font-weight:600;min-width:130px;text-align:center"></span>
+                        <button onclick="changeReconMonth(1)" style="width:28px;height:28px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:6px;cursor:pointer;font-size:14px">›</button>
+                    </div>
+                </div>
+                <div id="recon-summary" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;font-size:13px"></div>
+                <div id="recon-list"><div class="empty">Laster…</div></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Prognose — Brukskonto ved månedsslutt</div>
+                <div id="projection-detail"><div class="empty">Laster…</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── HISTORIKK ── -->
+    <div id="tab-historikk" class="tab-content">
+        <div class="inner-tabs">
+            <button class="inner-tab active" onclick="switchHistorikkView('networth', this)">Netto formue</button>
+            <button class="inner-tab" onclick="switchHistorikkView('snapshots', this)">Saldo per konto</button>
+            <button class="inner-tab" onclick="switchHistorikkView('categories', this)">Kategorier</button>
+        </div>
+
+        <!-- Net worth -->
+        <div id="hist-networth" class="inner-section active">
+            <div class="chart-card">
+                <canvas id="networth-chart"></canvas>
+            </div>
+            <div class="card">
+                <div class="card-title">Total formue per måned</div>
+                <div class="trends-wrap" id="networth-table"></div>
+            </div>
+        </div>
+
+        <!-- Snapshots -->
+        <div id="hist-snapshots" class="inner-section">
+            <div class="card" style="margin-bottom:20px">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div class="card-title" style="margin-bottom:0">Lagre månedsslutt</div>
+                    <select id="snapshot-month" style="max-width:180px"></select>
+                    <button class="btn" onclick="saveSnapshot()">Lagre saldo</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Saldo per konto</div>
+                <div class="trends-wrap" id="snapshot-table">
+                    <div class="empty">Ingen lagrede måneder ennå.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories -->
+        <div id="hist-categories" class="inner-section">
+            <div class="card">
+                <div class="card-title">Utgifter per kategori — månedlig (inkl. 3-mnd snitt)</div>
+                <div class="trends-wrap" id="category-trends-table">
+                    <div class="empty">Laster…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ── State ──
+let currentTab = 'overview';
+let overviewMonth = new Date();
+let txnMonth = new Date();
+let txnShowAll = false;
+
+let txnDir = 'expense';
+let txnCostType = 'variable';
+let txnNec = true;
+let billNec = true;
+
+let editId = null;
+let editDir = 'expense';
+let editCostType = 'variable';
+let editNec = true;
+
+// ── Tabs ──
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.querySelectorAll('[data-tab]').forEach(btn => {
+        if (btn.dataset.tab === tab) btn.classList.add('active');
+    });
+    currentTab = tab;
+    if (tab === 'overview') loadOverview();
+    if (tab === 'transactions') loadTransactions();
+    if (tab === 'budsjett') loadBudsjett();
+    if (tab === 'historikk') loadHistorikk();
+    if (tab === 'settings') loadSettings();
+}
+
+function toggleForm(id) {
+    document.getElementById(id).classList.toggle('open');
+}
+
+// ── Toggles ──
+function setDir(dir) {
+    txnDir = dir;
+    document.getElementById('dir-expense').classList.toggle('active', dir === 'expense');
+    document.getElementById('dir-income').classList.toggle('active', dir === 'income');
+}
+
+function setCostType(type) {
+    txnCostType = type;
+    document.getElementById('type-variable').classList.toggle('active', type === 'variable');
+    document.getElementById('type-recurring').classList.toggle('active', type === 'recurring');
+}
+
+function setNecessary(val) {
+    txnNec = val;
+    document.getElementById('nec-yes').classList.toggle('active', val);
+    document.getElementById('nec-no').classList.toggle('active', !val);
+}
+
+function setBillNec(val) {
+    billNec = val;
+    document.getElementById('bill-nec-yes').classList.toggle('active', val);
+    document.getElementById('bill-nec-no').classList.toggle('active', !val);
+}
+
+// ── Edit modal toggles ──
+function setEditDir(dir) {
+    editDir = dir;
+    document.getElementById('edit-dir-expense').classList.toggle('active', dir === 'expense');
+    document.getElementById('edit-dir-income').classList.toggle('active', dir === 'income');
+}
+
+function setEditType(type) {
+    editCostType = type;
+    document.getElementById('edit-type-variable').classList.toggle('active', type === 'variable');
+    document.getElementById('edit-type-recurring').classList.toggle('active', type === 'recurring');
+}
+
+function setEditNec(val) {
+    editNec = val;
+    document.getElementById('edit-nec-yes').classList.toggle('active', val);
+    document.getElementById('edit-nec-no').classList.toggle('active', !val);
+}
+
+function onEditCategoryChange() {
+    const sel = document.getElementById('edit-category');
+    const inp = document.getElementById('edit-category-new');
+    if (sel.value === '__new__') { inp.style.display = 'block'; inp.focus(); }
+    else { inp.style.display = 'none'; inp.value = ''; }
+}
+
+// ── Categories ──
+async function loadCategories(targetSelId) {
+    const res = await fetch('/api/categories');
+    const cats = await res.json();
+    const sel = document.getElementById(targetSelId);
+    const cur = sel.value === '__new__' ? '' : sel.value;
+    sel.innerHTML = '<option value="">Ingen</option>' +
+        cats.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${c}</option>`).join('') +
+        '<option value="__new__">+ Legg til ny…</option>';
+    if (cur && cats.includes(cur)) sel.value = cur;
+    return cats;
+}
+
+function onCategoryChange() {
+    const sel = document.getElementById('txn-category');
+    const inp = document.getElementById('txn-category-new');
+    if (sel.value === '__new__') { inp.style.display = 'block'; inp.focus(); }
+    else { inp.style.display = 'none'; inp.value = ''; }
+}
+
+// ── Months ──
+const MONTHS = ['Januar','Februar','Mars','April','Mai','Juni',
+                'Juli','August','September','Oktober','November','Desember'];
+
+function monthStr(d) { return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`; }
+function monthParam(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+
+function changeMonth(delta) {
+    overviewMonth = new Date(overviewMonth.getFullYear(), overviewMonth.getMonth() + delta, 1);
+    document.getElementById('month-label').textContent = monthStr(overviewMonth);
+    loadOverview();
+}
+
+function changeTxnMonth(delta) {
+    txnShowAll = false;
+    txnMonth = new Date(txnMonth.getFullYear(), txnMonth.getMonth() + delta, 1);
+    document.getElementById('txn-month-label').textContent = monthStr(txnMonth);
+    loadTransactions();
+}
+
+function setTxnAll() {
+    txnShowAll = true;
+    document.getElementById('txn-month-label').textContent = 'Alle';
+    loadTransactions();
+}
+
+// ── Format ──
+const fmt = (n) =>
+    new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK', maximumFractionDigits: 0 }).format(n);
+
+// ── Badges ──
+function typeBadge(ct) {
+    if (ct === 'recurring') return `<span class="badge badge-blue">Fast</span>`;
+    if (ct === 'transfer')  return `<span class="badge badge-yellow">Overføring</span>`;
+    return `<span class="badge badge-muted">Variabel</span>`;
+}
+
+function necBadge(n) {
+    return n ? '<span class="badge badge-green">Ja</span>' : '<span class="badge badge-muted">Nei</span>';
+}
+
+function txnRow(t, showEdit) {
+    const amtCls = t.amount >= 0 ? 'pos' : 'neg';
+    const amtStr = t.amount >= 0 ? `+${fmt(t.amount)}` : fmt(t.amount);
+    const isReal = typeof t.id === 'number';
+    const btns = isReal && showEdit
+        ? `<button class="btn-sm edit" onclick="openEditModal(${t.id})">✏</button>
+           <button class="btn-sm" onclick="deleteTxn(${t.id})" style="margin-left:4px">Slett</button>`
+        : '';
+    const monthlyBadge = t.monthly ? `<span class="badge badge-yellow" style="margin-left:5px;font-size:10px">Mnd</span>` : '';
+    return `<tr>
+        <td>${t.date}</td>
+        <td>${t.description || '—'}${monthlyBadge}</td>
+        <td>${t.category ? `<span class="badge badge-blue">${t.category}</span>` : '—'}</td>
+        <td>${t.account_name || '—'}</td>
+        <td>${typeBadge(t.cost_type)}</td>
+        <td>${necBadge(t.necessary)}</td>
+        <td style="text-align:right" class="${amtCls}">${amtStr}</td>
+        <td style="white-space:nowrap">${btns}</td>
+    </tr>`;
+}
+
+// ── Overview ──
+async function loadOverview() {
+    document.getElementById('month-label').textContent = monthStr(overviewMonth);
+    const res = await fetch(`/api/overview?month=${monthParam(overviewMonth)}`);
+    const data = await res.json();
+
+    // Kontoer
+    const accEl = document.getElementById('overview-accounts');
+    if (!data.accounts.length) {
+        accEl.innerHTML = '<div class="empty">Ingen kontoer — legg til en under Innstillinger.</div>';
+    } else {
+        accEl.innerHTML = data.accounts.map(a => {
+            const bal = a.effective_balance !== undefined ? a.effective_balance : a.balance;
+            let extra = '';
+            if (a.type === 'investment') {
+                const dep = a.total_deposited || 0;
+                const pnl = bal - dep;
+                const cls = pnl >= 0 ? 'pos' : 'neg';
+                extra = `
+                    <div class="inv-meta">Innskudd: ${fmt(dep)}</div>
+                    <div class="inv-meta">P&L: <span class="pnl ${cls}">${pnl >= 0 ? '+' : ''}${fmt(pnl)}</span></div>
+                    <button class="account-update-btn" onclick="openMktModal(${a.id},'${a.name.replace(/'/g,"\\'")}',${bal},${dep})">Oppdater saldo</button>`;
+            }
+            return `
+            <div class="account-card">
+                <div class="account-name">${a.name}</div>
+                <div class="account-type">${a.type}</div>
+                <div class="account-balance ${bal < 0 ? 'neg' : ''}">${fmt(bal)}</div>
+                ${extra}
+            </div>`;
+        }).join('');
+    }
+
+    // Stats
+    const netCls = data.net >= 0 ? 'green' : 'red';
+    document.getElementById('overview-stats').innerHTML = `
+        <div class="stat-card" onclick="setOverviewFilter('income')">
+            <div class="stat-label">Inntekt</div>
+            <div class="stat-value green">${fmt(data.total_income)}</div>
+        </div>
+        <div class="stat-card" onclick="setOverviewFilter('expenses')">
+            <div class="stat-label">Utgifter</div>
+            <div class="stat-value red">${fmt(data.total_expenses)}</div>
+        </div>
+        <div class="stat-card" onclick="setOverviewFilter('net')">
+            <div class="stat-label">Netto</div>
+            <div class="stat-value ${netCls}">${fmt(data.net)}</div>
+        </div>
+        <div class="stat-card" onclick="setOverviewFilter('necessary')">
+            <div class="stat-label">Nødvendig</div>
+            <div class="stat-value">${fmt(data.necessary)}</div>
+        </div>
+        <div class="stat-card" onclick="setOverviewFilter('unnecessary')">
+            <div class="stat-label">Unødvendig</div>
+            <div class="stat-value">${fmt(data.unnecessary)}</div>
+        </div>
+        <div class="stat-card" onclick="setOverviewFilter('recurring')">
+            <div class="stat-label">Fast</div>
+            <div class="stat-value">${fmt(data.recurring)}</div>
+        </div>
+        <div class="stat-card" onclick="setOverviewFilter('variable')">
+            <div class="stat-label">Variabel</div>
+            <div class="stat-value">${fmt(data.variable)}</div>
+        </div>
+        <div class="stat-card" onclick="setOverviewFilter('monthly')">
+            <div class="stat-label">Månedlige</div>
+            <div class="stat-value red">${fmt(data.monthly_expenses)}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Sparerate</div>
+            <div class="stat-value ${data.savings_rate >= 20 ? 'green' : data.savings_rate >= 10 ? '' : 'red'}">${data.savings_rate}%</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Nødfond</div>
+            <div class="stat-value ${data.emergency_fund_months >= 3 ? 'green' : data.emergency_fund_months >= 1 ? '' : 'red'}">${data.emergency_fund_months} mnd</div>
+        </div>
+    `;
+
+    // Faste utgifter
+    const billRes = await fetch('/api/recurring');
+    const bills = await billRes.json();
+    const billEl = document.getElementById('overview-recurring');
+    if (!bills.length) {
+        billEl.innerHTML = '<div class="empty">Ingen faste utgifter registrert.</div>';
+    } else {
+        const total = bills.reduce((s, b) => s + b.amount, 0);
+        billEl.innerHTML = `
+            <table>
+                <thead><tr>
+                    <th>Navn</th><th>Dag</th><th>Konto</th>
+                    <th>Nødvendig</th><th style="text-align:right">Beløp</th>
+                </tr></thead>
+                <tbody>
+                    ${bills.map(b => `
+                        <tr>
+                            <td>${b.name}</td>
+                            <td>${b.day_of_month ? `Dag ${b.day_of_month}` : '—'}</td>
+                            <td>${b.account_name || '—'}</td>
+                            <td>${necBadge(b.necessary)}</td>
+                            <td style="text-align:right" class="neg">${fmt(b.amount)}</td>
+                        </tr>
+                    `).join('')}
+                    <tr>
+                        <td colspan="4" style="color:var(--muted);font-size:12px">Månedlig total</td>
+                        <td style="text-align:right;font-weight:600" class="neg">${fmt(total)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    }
+
+    await loadCharts();
+}
+
+let _charts = {};
+let monthTxns = [];
+
+function toggleRecurring() {
+    const wrap = document.getElementById('overview-recurring-wrap');
+    const chev = document.getElementById('recurring-chevron');
+    const open = wrap.style.display !== 'none';
+    wrap.style.display = open ? 'none' : 'block';
+    chev.textContent = open ? '▶' : '▼';
+}
+
+function toggleProjection() {
+    const wrap = document.getElementById('overview-projection-wrap');
+    const chev = document.getElementById('projection-chevron');
+    const open = wrap.style.display !== 'none';
+    wrap.style.display = open ? 'none' : 'block';
+    chev.textContent = open ? '▶' : '▼';
+    if (!open) loadProjectionInline();
+}
+
+async function loadProjectionInline() {
+    const mp = monthParam(overviewMonth);
+    const data = await fetch(`/api/projection?month=${mp}`).then(r => r.json());
+    const el = document.getElementById('overview-projection');
+    const rows = [...data.future_bills, ...data.past_due].map(b => {
+        const isPast = data.past_due.includes(b);
+        return `<div class="recon-row">
+            <div class="recon-dot ${isPast ? 'miss' : 'future'}"></div>
+            <div class="recon-name">${b.name}</div>
+            <div class="recon-day">${b.day_of_month ? 'Dag ' + b.day_of_month : '—'}</div>
+            <div class="recon-amt neg">-${fmt(b.amount)}</div>
+        </div>`;
+    });
+    el.innerHTML = `
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;font-size:13px">
+            <div>Gjenstår: <strong class="neg">${fmt(data.remaining_amount)}</strong></div>
+            <div>Nåværende: <strong>${fmt(data.current_checking)}</strong></div>
+            <div>Prognose: <strong class="${data.projected_balance >= 0 ? 'pos' : 'neg'}">${fmt(data.projected_balance)}</strong></div>
+        </div>
+        ${rows.length ? rows.join('') : '<div class="empty" style="padding:12px 0">Alle faste utgifter er logget ✓</div>'}
+    `;
+}
+
+async function loadCharts() {
+    const url = `/api/transactions?month=${monthParam(overviewMonth)}`;
+    const [res, trRes] = await Promise.all([fetch(url), fetch('/api/transfers')]);
+    const txns = await res.json();
+    const allTransfers = await trRes.json();
+    const mp = monthParam(overviewMonth);
+    const EXPENSE_TARGETS = new Set(['Anneli Sparekonto', 'Nordnet', 'Firi']);
+    const transfers = allTransfers
+        .filter(t => t.date && t.date.slice(0, 7) === mp
+            && EXPENSE_TARGETS.has(t.to_name)
+            && t.from_name !== 'Sparekonto')
+        .map(t => ({
+            id: 'tr_' + t.id,
+            date: t.date,
+            description: t.description || ('→ ' + (t.to_name || '?')),
+            account_name: t.from_name || '—',
+            amount: -t.amount,
+            cost_type: 'transfer',
+            necessary: 0,
+            category: 'Overføring',
+        }));
+    monthTxns = [...txns, ...transfers].sort((a, b) => b.date.localeCompare(a.date));
+    const expenses = monthTxns.filter(t => t.amount < 0);
+
+    const card = document.getElementById('overview-charts-card');
+    if (!expenses.length) { card.style.display = 'none'; }
+    else { card.style.display = 'block'; }
+
+    const PALETTE = ['#3b82f6','#10b981','#f59e0b','#ef4444','#a78bfa','#06b6d4','#f97316','#84cc16','#ec4899','#64748b'];
+
+    function makeChart(id, labels, values, onClickFn) {
+        if (_charts[id]) _charts[id].destroy();
+        _charts[id] = new Chart(document.getElementById(id), {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{ data: values, backgroundColor: PALETTE.slice(0, labels.length),
+                    borderColor: '#111827', borderWidth: 2 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                onClick: (e, els) => { if (!els.length) return; onClickFn(labels[els[0].index]); },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#e2e8f0', font: { size: 11 }, boxWidth: 12, padding: 8 },
+                        onClick: (e, item) => onClickFn(item.text)
+                    },
+                    tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmt(ctx.raw)}` } }
+                }
+            }
+        });
+    }
+
+    const resetFilters = () => {
+        document.getElementById('ov-dir').value = '';
+        document.getElementById('ov-type').value = '';
+        document.getElementById('ov-nec').value = '';
+        document.getElementById('ov-cat').value = '';
+        document.querySelectorAll('.stat-card').forEach(el => el.classList.remove('active'));
+    };
+
+    // Etter kategori
+    const catMap = {};
+    expenses.forEach(t => {
+        const k = t.category || 'Ukategorisert';
+        catMap[k] = (catMap[k] || 0) + Math.abs(t.amount);
+    });
+    makeChart('chart-category', Object.keys(catMap), Object.values(catMap), label => {
+        resetFilters();
+        document.getElementById('ov-dir').value = 'expense';
+        document.getElementById('ov-cat').value = label === 'Ukategorisert' ? '__none__' : label;
+        renderOverviewTxns();
+    });
+
+    // Fast vs Variabel
+    const recurAmt = expenses.filter(t => t.cost_type === 'recurring').reduce((s,t) => s + Math.abs(t.amount), 0);
+    const varAmt   = expenses.filter(t => t.cost_type !== 'recurring').reduce((s,t) => s + Math.abs(t.amount), 0);
+    makeChart('chart-type', ['Fast', 'Variabel'], [recurAmt, varAmt], label => {
+        resetFilters();
+        document.getElementById('ov-dir').value = 'expense';
+        document.getElementById('ov-type').value = label === 'Fast' ? 'recurring' : 'variable';
+        renderOverviewTxns();
+    });
+
+    // Nødvendig vs Unødvendig
+    const necAmt = expenses.filter(t => t.necessary).reduce((s,t) => s + Math.abs(t.amount), 0);
+    const unnAmt = expenses.filter(t => !t.necessary).reduce((s,t) => s + Math.abs(t.amount), 0);
+    makeChart('chart-nec', ['Nødvendig', 'Unødvendig'], [necAmt, unnAmt], label => {
+        resetFilters();
+        document.getElementById('ov-dir').value = 'expense';
+        document.getElementById('ov-nec').value = label === 'Nødvendig' ? '1' : '0';
+        renderOverviewTxns();
+    });
+
+    // Kategoritabell
+    const catCount = {};
+    expenses.forEach(t => {
+        const k = t.category || 'Ukategorisert';
+        catCount[k] = catCount[k] || { count: 0, total: 0 };
+        catCount[k].count++;
+        catCount[k].total += Math.abs(t.amount);
+    });
+    const sorted = Object.entries(catCount).sort((a,b) => b[1].total - a[1].total);
+    document.getElementById('category-breakdown-body').innerHTML = sorted.map(([cat, v]) => `
+        <tr style="cursor:pointer" onclick="setOverviewFilter('cat:${cat}')">
+            <td>${cat}</td>
+            <td style="text-align:right">${v.count}</td>
+            <td style="text-align:right" class="neg">${fmt(v.total)}</td>
+        </tr>
+    `).join('');
+
+    // Kategoridropdown
+    const catSel = document.getElementById('ov-cat');
+    const curCat = catSel.value;
+    catSel.innerHTML = '<option value="">Alle kategorier</option>' +
+        Object.keys(catMap).map(c => `<option value="${c}" ${c === curCat ? 'selected' : ''}>${c}</option>`).join('') +
+        '<option value="__none__">Ukategorisert</option>';
+
+    renderOverviewTxns();
+}
+
+function setOverviewFilter(preset) {
+    const dir  = document.getElementById('ov-dir');
+    const type = document.getElementById('ov-type');
+    const nec  = document.getElementById('ov-nec');
+    const cat  = document.getElementById('ov-cat');
+
+    dir.value = ''; type.value = ''; nec.value = '';
+    document.getElementById('ov-monthly').value = '';
+    cat.value = '';
+
+    if (preset === 'income')       { dir.value = 'income'; }
+    else if (preset === 'expenses')    { dir.value = 'expense'; }
+    else if (preset === 'net')         { /* alle */ }
+    else if (preset === 'necessary')   { dir.value = 'expense'; nec.value = '1'; }
+    else if (preset === 'unnecessary') { dir.value = 'expense'; nec.value = '0'; }
+    else if (preset === 'recurring')   { dir.value = 'expense'; type.value = 'recurring'; }
+    else if (preset === 'variable')    { dir.value = 'expense'; type.value = 'variable'; }
+    else if (preset === 'monthly')     { dir.value = 'expense'; document.getElementById('ov-monthly').value = '1'; }
+    else if (preset.startsWith('cat:')) {
+        const label = preset.slice(4);
+        dir.value = 'expense';
+        cat.value = label === 'Ukategorisert' ? '__none__' : label;
+    }
+
+    document.querySelectorAll('.stat-card').forEach(el => el.classList.remove('active'));
+    const presets = ['income','expenses','net','necessary','unnecessary','recurring','variable'];
+    const idx = presets.indexOf(preset);
+    if (idx !== -1) document.querySelectorAll('.stat-card')[idx]?.classList.add('active');
+
+    renderOverviewTxns();
+    document.getElementById('overview-txn-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearOverviewFilters() {
+    document.getElementById('ov-dir').value = '';
+    document.getElementById('ov-type').value = '';
+    document.getElementById('ov-nec').value = '';
+    document.getElementById('ov-monthly').value = '';
+    document.getElementById('ov-cat').value = '';
+    document.querySelectorAll('.stat-card').forEach(el => el.classList.remove('active'));
+    renderOverviewTxns();
+}
+
+function renderOverviewTxns() {
+    const dir  = document.getElementById('ov-dir').value;
+    const type = document.getElementById('ov-type').value;
+    const nec  = document.getElementById('ov-nec').value;
+    const mon  = document.getElementById('ov-monthly').value;
+    const cat  = document.getElementById('ov-cat').value;
+
+    let txns = monthTxns;
+    if (dir === 'income')  txns = txns.filter(t => t.amount >= 0);
+    if (dir === 'expense') txns = txns.filter(t => t.amount < 0);
+    if (type) txns = txns.filter(t => t.cost_type === type);
+    if (nec === '1') txns = txns.filter(t => t.necessary);
+    if (nec === '0') txns = txns.filter(t => !t.necessary);
+    if (mon === '1') txns = txns.filter(t => t.monthly);
+    if (mon === '0') txns = txns.filter(t => !t.monthly);
+    if (cat === '__none__') txns = txns.filter(t => !t.category);
+    else if (cat) txns = txns.filter(t => t.category === cat);
+
+    const tbody = document.getElementById('overview-txn-body');
+    if (!txns.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">Ingen transaksjoner passer</td></tr>';
+        return;
+    }
+    tbody.innerHTML = txns.map(t => txnRow(t, true)).join('');
+}
+
+// ── Transaksjoner ──
+async function loadTransactions() {
+    await Promise.all([refreshAccountDropdowns(), loadCategories('txn-category')]);
+    if (!document.getElementById('txn-date').value) {
+        document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
+    }
+    if (!txnShowAll) {
+        document.getElementById('txn-month-label').textContent = monthStr(txnMonth);
+    }
+
+    const url = txnShowAll
+        ? '/api/transactions'
+        : `/api/transactions?month=${monthParam(txnMonth)}`;
+    const res = await fetch(url);
+    const txns = await res.json();
+    const tbody = document.getElementById('txn-body');
+
+    if (!txns.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">Ingen transaksjoner.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = txns.map(t => txnRow(t, true)).join('');
+}
+
+async function addTransaction() {
+    const date = document.getElementById('txn-date').value;
+    const desc = document.getElementById('txn-desc').value.trim();
+    const accountId = document.getElementById('txn-account').value || null;
+    let amount = parseFloat(document.getElementById('txn-amount').value);
+
+    if (!date || isNaN(amount) || amount <= 0) {
+        alert('Dato og positivt beløp er påkrevd.');
+        return;
+    }
+
+    const catSel = document.getElementById('txn-category').value;
+    const category = catSel === '__new__'
+        ? document.getElementById('txn-category-new').value.trim()
+        : catSel || null;
+
+    if (txnDir === 'expense') amount = -amount;
+
+    const monthly = document.getElementById('txn-monthly').checked;
+    await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, description: desc, account_id: accountId,
+            amount, cost_type: txnCostType, necessary: txnNec, category, monthly })
+    });
+
+    document.getElementById('txn-desc').value = '';
+    document.getElementById('txn-amount').value = '';
+    document.getElementById('txn-monthly').checked = false;
+    document.getElementById('txn-category-new').value = '';
+    document.getElementById('txn-category-new').style.display = 'none';
+    loadTransactions();
+}
+
+async function deleteTxn(id) {
+    if (!confirm('Slette denne transaksjonen?')) return;
+    await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
+    loadTransactions();
+    if (currentTab === 'overview') await loadCharts();
+}
+
+// ── Rediger transaksjon ──
+async function openEditModal(id) {
+    let t = monthTxns.find(x => x.id === id);
+    if (!t) {
+        const all = await fetch('/api/transactions').then(r => r.json());
+        t = all.find(x => x.id === id);
+    }
+    if (!t) return;
+
+    editId = id;
+    document.getElementById('edit-date').value = t.date;
+    document.getElementById('edit-desc').value = t.description || '';
+    document.getElementById('edit-amount').value = Math.abs(t.amount);
+
+    setEditDir(t.amount >= 0 ? 'income' : 'expense');
+    setEditType(t.cost_type || 'variable');
+    setEditNec(!!t.necessary);
+    document.getElementById('edit-monthly').checked = !!t.monthly;
+
+    // Populate account dropdown
+    const accounts = await fetch('/api/accounts').then(r => r.json());
+    const accSel = document.getElementById('edit-account');
+    accSel.innerHTML = '<option value="">Ingen</option>' +
+        accounts.map(a => `<option value="${a.id}" ${a.id == t.account_id ? 'selected' : ''}>${a.name}</option>`).join('');
+
+    // Populate category dropdown
+    await loadCategories('edit-category');
+    const catSel = document.getElementById('edit-category');
+    if (t.category) catSel.value = t.category;
+    else catSel.value = '';
+    document.getElementById('edit-category-new').style.display = 'none';
+
+    document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').classList.remove('open');
+    editId = null;
+}
+
+async function saveEdit() {
+    const date = document.getElementById('edit-date').value;
+    const desc = document.getElementById('edit-desc').value.trim();
+    const accountId = document.getElementById('edit-account').value || null;
+    let amount = parseFloat(document.getElementById('edit-amount').value);
+
+    if (!date || isNaN(amount) || amount <= 0) {
+        alert('Dato og positivt beløp er påkrevd.');
+        return;
+    }
+
+    const catSel = document.getElementById('edit-category').value;
+    const category = catSel === '__new__'
+        ? document.getElementById('edit-category-new').value.trim()
+        : catSel || null;
+
+    if (editDir === 'expense') amount = -amount;
+    const monthly = document.getElementById('edit-monthly').checked;
+
+    await fetch(`/api/transactions/${editId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, description: desc, account_id: accountId,
+            amount, cost_type: editCostType, necessary: editNec, category, monthly })
+    });
+
+    closeEditModal();
+    if (currentTab === 'transactions') loadTransactions();
+    if (currentTab === 'overview') await loadCharts();
+}
+
+// ── Innstillinger ──
+async function loadSettings() {
+    await refreshAccountDropdowns();
+    loadAccountsTable();
+    loadBillsTable();
+    loadTransfersTable();
+    if (!document.getElementById('tr-date').value) {
+        document.getElementById('tr-date').value = new Date().toISOString().split('T')[0];
+    }
+}
+
+async function refreshAccountDropdowns() {
+    const res = await fetch('/api/accounts');
+    const accounts = await res.json();
+    ['txn-account', 'bill-account'].forEach(id => {
+        const sel = document.getElementById(id);
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">Ingen</option>' +
+            accounts.map(a => `<option value="${a.id}" ${a.id == cur ? 'selected' : ''}>${a.name}</option>`).join('');
+    });
+    ['tr-from', 'tr-to'].forEach(id => {
+        const sel = document.getElementById(id);
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">Velg konto</option>' +
+            accounts.map(a => `<option value="${a.id}" ${a.id == cur ? 'selected' : ''}>${a.name}</option>`).join('');
+    });
+    return accounts;
+}
+
+async function loadAccountsTable() {
+    const res = await fetch('/api/accounts');
+    const accounts = await res.json();
+    const tbody = document.getElementById('accounts-body');
+    if (!accounts.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty">Ingen kontoer</td></tr>';
+        return;
+    }
+    tbody.innerHTML = accounts.map(a => {
+        const dep = a.type === 'investment'
+            ? `<br><span style="font-size:11px;color:var(--muted)">Innskudd: ${fmt(a.total_deposited || 0)}</span>`
+            : '';
+        return `
+        <tr>
+            <td>${a.name}</td>
+            <td><span class="badge badge-blue">${a.type}</span></td>
+            <td style="text-align:right" class="${a.balance >= 0 ? 'pos' : 'neg'}">${fmt(a.balance)}${dep}</td>
+            <td><button class="btn-sm" onclick="deleteAccount(${a.id})">Slett</button></td>
+        </tr>`;
+    }).join('');
+}
+
+async function addAccount() {
+    const name = document.getElementById('acc-name').value.trim();
+    const type = document.getElementById('acc-type').value;
+    const balance = parseFloat(document.getElementById('acc-balance').value) || 0;
+    if (!name) { alert('Kontonavn er påkrevd.'); return; }
+
+    await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, type, balance })
+    });
+    document.getElementById('acc-name').value = '';
+    document.getElementById('acc-balance').value = '';
+    loadSettings();
+}
+
+async function deleteAccount(id) {
+    if (!confirm('Slette denne kontoen?')) return;
+    await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
+    loadSettings();
+}
+
+async function loadBillsTable() {
+    const res = await fetch('/api/recurring');
+    const bills = await res.json();
+    const tbody = document.getElementById('bills-body');
+    if (!bills.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Ingen faste utgifter</td></tr>';
+        return;
+    }
+    tbody.innerHTML = bills.map(b => `
+        <tr>
+            <td>${b.name}</td>
+            <td>${b.day_of_month ? `Dag ${b.day_of_month}` : '—'}</td>
+            <td>${b.account_name || '—'}</td>
+            <td>${necBadge(b.necessary)}</td>
+            <td style="text-align:right" class="neg">${fmt(b.amount)}</td>
+            <td><button class="btn-sm" onclick="deleteBill(${b.id})">Slett</button></td>
+        </tr>
+    `).join('');
+}
+
+async function addBill() {
+    const name = document.getElementById('bill-name').value.trim();
+    const amount = parseFloat(document.getElementById('bill-amount').value);
+    const day = parseInt(document.getElementById('bill-day').value) || null;
+    const accountId = document.getElementById('bill-account').value || null;
+
+    if (!name || isNaN(amount) || amount <= 0) {
+        alert('Navn og positivt beløp er påkrevd.');
+        return;
+    }
+
+    await fetch('/api/recurring', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, amount, day_of_month: day, account_id: accountId, necessary: billNec })
+    });
+    document.getElementById('bill-name').value = '';
+    document.getElementById('bill-amount').value = '';
+    document.getElementById('bill-day').value = '';
+    loadSettings();
+}
+
+async function deleteBill(id) {
+    if (!confirm('Slette denne faste utgiften?')) return;
+    await fetch(`/api/recurring/${id}`, { method: 'DELETE' });
+    loadBillsTable();
+    if (currentTab === 'overview') loadOverview();
+}
+
+// ── Overføringer ──
+async function loadTransfersTable() {
+    const res = await fetch('/api/transfers');
+    const rows = await res.json();
+    const tbody = document.getElementById('transfers-body');
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Ingen overføringer ennå</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(r => `
+        <tr>
+            <td>${r.date}</td>
+            <td>${r.from_name || '—'}</td>
+            <td>${r.to_name || '—'}</td>
+            <td>${r.description || '—'}</td>
+            <td style="text-align:right" class="pos">${fmt(r.amount)}</td>
+            <td><button class="btn-sm" onclick="deleteTransfer(${r.id})">Slett</button></td>
+        </tr>
+    `).join('');
+}
+
+async function addTransfer() {
+    const fromId = document.getElementById('tr-from').value;
+    const toId = document.getElementById('tr-to').value;
+    const amount = parseFloat(document.getElementById('tr-amount').value);
+    const date = document.getElementById('tr-date').value;
+    const desc = document.getElementById('tr-desc').value.trim();
+
+    if (!fromId || !toId) { alert('Velg begge kontoer.'); return; }
+    if (fromId === toId) { alert('Fra og Til må være forskjellige kontoer.'); return; }
+    if (!date || isNaN(amount) || amount <= 0) { alert('Dato og positivt beløp er påkrevd.'); return; }
+
+    const res = await fetch('/api/transfers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from_account_id: fromId, to_account_id: toId, amount, date, description: desc })
+    });
+    if (!res.ok) { alert('Overføring feilet.'); return; }
+
+    document.getElementById('tr-amount').value = '';
+    document.getElementById('tr-desc').value = '';
+    loadSettings();
+}
+
+async function deleteTransfer(id) {
+    if (!confirm('Slette denne overføringen? Kontosaldoene tilbakeføres.')) return;
+    await fetch(`/api/transfers/${id}`, { method: 'DELETE' });
+    loadSettings();
+}
+
+// ── Historikk: net worth chart ──
+let _networthChart = null;
+
+function switchHistorikkView(view, btn) {
+    document.querySelectorAll('#tab-historikk .inner-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#tab-historikk .inner-section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('hist-' + view).classList.add('active');
+}
+
+function renderNetWorthChart(snapshots) {
+    if (!snapshots.length) return;
+    const months = [...new Set(snapshots.map(s => s.month))].sort();
+    const totals = months.map(m => {
+        const accs = snapshots.filter(s => s.month === m);
+        return accs.reduce((s, a) => s + a.balance, 0);
+    });
+
+    const canvas = document.getElementById('networth-chart');
+    if (!canvas) return;
+    if (_networthChart) _networthChart.destroy();
+    _networthChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: months,
+            datasets: [{
+                data: totals,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,.1)',
+                borderWidth: 2,
+                pointRadius: 4,
+                pointBackgroundColor: '#3b82f6',
+                fill: true,
+                tension: 0.3,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#1e2d45' } },
+                y: { ticks: { color: '#64748b', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: '#1e2d45' } }
+            }
+        }
+    });
+}
+
+function renderNetWorthTable(snapshots) {
+    const el = document.getElementById('networth-table');
+    if (!el || !snapshots.length) { if(el) el.innerHTML = '<div class="empty">Ingen lagrede måneder ennå.</div>'; return; }
+    const months = [...new Set(snapshots.map(s => s.month))].sort().reverse();
+    let html = '<table><thead><tr><th>Måned</th><th style="text-align:right">Total formue</th><th style="text-align:right">Endring</th></tr></thead><tbody>';
+    months.forEach((m, i) => {
+        const tot = snapshots.filter(s => s.month === m).reduce((s, a) => s + a.balance, 0);
+        const prev = i < months.length - 1 ? snapshots.filter(s => s.month === months[i+1]).reduce((s, a) => s + a.balance, 0) : null;
+        const d = prev !== null ? tot - prev : null;
+        html += `<tr><td>${m}</td><td style="text-align:right">${fmt(tot)}</td><td style="text-align:right">${d !== null ? `<span class="${d >= 0 ? 'pos' : 'neg'}">${d >= 0 ? '+' : ''}${fmt(d)}</span>` : '—'}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+}
+
+// ── Budsjett ──
+let reconMonth = new Date();
+
+function switchBudsjettView(view, btn) {
+    document.querySelectorAll('#tab-budsjett .inner-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#tab-budsjett .inner-section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('budsjett-' + view).classList.add('active');
+}
+
+function setBudgetView(mode, btn) {
+    document.getElementById('budget-bars').style.display  = mode === 'bars'  ? 'block' : 'none';
+    document.getElementById('budget-table').style.display = mode === 'table' ? 'block' : 'none';
+    document.getElementById('budget-view-bar').classList.toggle('active', mode === 'bars');
+    document.getElementById('budget-view-tbl').classList.toggle('active', mode === 'table');
+}
+
+async function loadBudsjett() {
+    document.getElementById('recon-month-label').textContent = monthStr(reconMonth);
+    const mp = monthParam(overviewMonth);
+
+    const [budgetsRes, ovRes, catsRes, projRes] = await Promise.all([
+        fetch('/api/budgets'),
+        fetch(`/api/overview?month=${mp}`),
+        fetch('/api/categories'),
+        fetch(`/api/projection?month=${monthParam(reconMonth)}`)
+    ]);
+    const budgets = await budgetsRes.json();
+    const ov = await ovRes.json();
+    const cats = await catsRes.json();
+    const proj = await projRes.json();
+
+    // Populate category select for budget setting
+    const sel = document.getElementById('budget-cat-sel');
+    sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    // Pre-fill budget amount if already set
+    sel.onchange = () => {
+        const existing = budgets.find(b => b.category === sel.value);
+        document.getElementById('budget-amount').value = existing ? existing.monthly_amount : '';
+    };
+    if (cats.length) sel.dispatchEvent(new Event('change'));
+
+    // Build spending map from overview transactions
+    const spendMap = {};
+    if (ov.accounts) {
+        const txnRes = await fetch(`/api/transactions?month=${mp}`);
+        const txns = await txnRes.json();
+        txns.filter(t => t.amount < 0).forEach(t => {
+            const k = t.category || 'Ukategorisert';
+            spendMap[k] = (spendMap[k] || 0) + Math.abs(t.amount);
+        });
+    }
+
+    renderBudgetBars(budgets, spendMap);
+    renderBudgetTable(budgets, spendMap);
+    renderReconciliation(proj);
+}
+
+function renderBudgetBars(budgets, spendMap) {
+    const el = document.getElementById('budget-bars');
+    if (!budgets.length) {
+        el.innerHTML = '<div class="empty">Ingen budsjetter satt ennå. Legg til over.</div>';
+        return;
+    }
+    // Also show unbudgeted categories with spend
+    const allCats = new Set([...budgets.map(b => b.category), ...Object.keys(spendMap)]);
+    const budgetMap = Object.fromEntries(budgets.map(b => [b.category, b]));
+
+    const items = [...allCats].map(c => ({
+        cat: c,
+        budget: budgetMap[c]?.monthly_amount || 0,
+        spent: spendMap[c] || 0,
+        id: budgetMap[c]?.id,
+    })).sort((a, b) => (b.budget || b.spent) - (a.budget || a.spent));
+
+    el.innerHTML = items.map(({ cat, budget, spent, id }) => {
+        if (!budget && !spent) return '';
+        const pct = budget ? Math.min(spent / budget * 100, 100) : 0;
+        const cls = !budget ? 'warn' : pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'ok';
+        const overText = budget && spent > budget ? ` <span style="color:var(--red);font-size:11px">(+${fmt(spent - budget)})</span>` : '';
+        const delBtn = id ? `<button class="btn-sm" style="font-size:10px;padding:1px 6px" onclick="deleteBudget(${id})">×</button>` : '';
+        return `<div class="budget-bar-wrap">
+            <div class="budget-bar-label">
+                <span class="budget-cat">${cat} ${delBtn}</span>
+                <span class="budget-amounts">${fmt(spent)} ${budget ? '/ ' + fmt(budget) : '(ikke budsjettert)'}${overText}</span>
+            </div>
+            <div class="budget-bar-outer">
+                <div class="budget-bar-inner ${cls}" style="width:${budget ? pct : 0}%"></div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderBudgetTable(budgets, spendMap) {
+    const el = document.getElementById('budget-table');
+    if (!budgets.length) { el.innerHTML = ''; return; }
+    const budgetMap = Object.fromEntries(budgets.map(b => [b.category, b]));
+    const allCats = new Set([...budgets.map(b => b.category), ...Object.keys(spendMap)]);
+    const rows = [...allCats].map(c => ({
+        cat: c, budget: budgetMap[c]?.monthly_amount || 0, spent: spendMap[c] || 0, id: budgetMap[c]?.id
+    })).sort((a, b) => b.spent - a.spent);
+
+    el.innerHTML = `<table><thead><tr><th>Kategori</th><th style="text-align:right">Forbrukt</th><th style="text-align:right">Budsjett</th><th style="text-align:right">Rest</th><th></th></tr></thead><tbody>` +
+        rows.map(({ cat, budget, spent, id }) => {
+            const rest = budget - spent;
+            return `<tr>
+                <td>${cat}</td>
+                <td style="text-align:right" class="neg">${fmt(spent)}</td>
+                <td style="text-align:right">${budget ? fmt(budget) : '—'}</td>
+                <td style="text-align:right" class="${rest >= 0 ? 'pos' : 'neg'}">${budget ? fmt(rest) : '—'}</td>
+                <td>${id ? `<button class="btn-sm" onclick="deleteBudget(${id})">Slett</button>` : ''}</td>
+            </tr>`;
+        }).join('') + '</tbody></table>';
+}
+
+async function saveBudget() {
+    const cat = document.getElementById('budget-cat-sel').value;
+    const amt = parseFloat(document.getElementById('budget-amount').value);
+    if (!cat || isNaN(amt) || amt <= 0) { alert('Velg kategori og beløp'); return; }
+    await fetch('/api/budgets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: cat, monthly_amount: amt })
+    });
+    loadBudsjett();
+}
+
+async function deleteBudget(id) {
+    await fetch(`/api/budgets/${id}`, { method: 'DELETE' });
+    loadBudsjett();
+}
+
+function renderReconciliation(proj) {
+    const el = document.getElementById('recon-list');
+    const sumEl = document.getElementById('recon-summary');
+    const projEl = document.getElementById('projection-detail');
+
+    const logged = proj.reconciled || [];
+    const future = proj.future_bills || [];
+    const pastDue = proj.past_due || [];
+    const unlogged = [...pastDue, ...future];
+
+    sumEl.innerHTML = `
+        <span style="color:var(--green)">✓ Logget: ${logged.length}</span>
+        <span style="color:var(--red)">✗ Ikke logget: ${pastDue.length}</span>
+        <span style="color:var(--yellow)">◷ Kommende: ${future.length}</span>
+    `;
+
+    const allRows = [
+        ...logged.map(b => ({ ...b, status: 'ok' })),
+        ...pastDue.map(b => ({ ...b, status: 'miss' })),
+        ...future.map(b => ({ ...b, status: 'future' })),
+    ].sort((a, b) => (a.day_of_month || 99) - (b.day_of_month || 99));
+
+    el.innerHTML = allRows.map(b => `
+        <div class="recon-row">
+            <div class="recon-dot ${b.status}"></div>
+            <div class="recon-name">${b.name}${b.account_name ? ' <span style="color:var(--muted);font-size:11px">· ' + b.account_name + '</span>' : ''}</div>
+            <div class="recon-day">${b.day_of_month ? 'Dag ' + b.day_of_month : '—'}</div>
+            <div class="recon-amt neg">-${fmt(b.amount)}</div>
+            ${b.status === 'ok' ? `<span style="font-size:11px;color:var(--muted)">${b.txn_date || ''}</span>` : ''}
+        </div>
+    `).join('') || '<div class="empty">Ingen faste utgifter registrert.</div>';
+
+    projEl.innerHTML = `
+        <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:14px;padding:8px 0">
+            <div><span style="color:var(--muted)">Nåværende saldo:</span> <strong>${fmt(proj.current_checking)}</strong></div>
+            <div><span style="color:var(--muted)">Gjenstående utgifter:</span> <strong class="neg">-${fmt(proj.remaining_amount)}</strong></div>
+            <div><span style="color:var(--muted)">Prognose:</span> <strong class="${proj.projected_balance >= 0 ? 'pos' : 'neg'}">${fmt(proj.projected_balance)}</strong></div>
+        </div>
+    `;
+}
+
+function changeReconMonth(delta) {
+    reconMonth = new Date(reconMonth.getFullYear(), reconMonth.getMonth() + delta, 1);
+    document.getElementById('recon-month-label').textContent = monthStr(reconMonth);
+    fetch(`/api/projection?month=${monthParam(reconMonth)}`).then(r => r.json()).then(renderReconciliation);
+}
+
+// ── CSV Import ──
+let csvParsed = [];
+
+async function openCsvModal() {
+    const accounts = await fetch('/api/accounts').then(r => r.json());
+    const sel = document.getElementById('csv-account');
+    sel.innerHTML = '<option value="">Ingen</option>' +
+        accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+    document.getElementById('csv-modal').classList.add('open');
+}
+
+function closeCsvModal() {
+    document.getElementById('csv-modal').classList.remove('open');
+    document.getElementById('csv-input').value = '';
+    document.getElementById('csv-preview').innerHTML = '';
+    document.getElementById('csv-status').textContent = '';
+    document.getElementById('csv-import-btn').disabled = true;
+    csvParsed = [];
+}
+
+function parseCsvDate(str, fmt) {
+    str = str.trim().replace(/"/g, '');
+    if (fmt === 'dd.mm.yyyy' || fmt === 'dd/mm/yyyy') {
+        const sep = fmt.includes('.') ? '.' : '/';
+        const [d, m, y] = str.split(sep);
+        return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    return str; // yyyy-mm-dd already
+}
+
+function parseCsvPreview() {
+    const raw = document.getElementById('csv-input').value.trim();
+    const colDate = parseInt(document.getElementById('csv-col-date').value) || 0;
+    const colDesc = parseInt(document.getElementById('csv-col-desc').value) || 1;
+    const colAmt  = parseInt(document.getElementById('csv-col-amt').value)  || 2;
+    const dateFmt = document.getElementById('csv-date-fmt').value;
+    const prev = document.getElementById('csv-preview');
+
+    if (!raw) { prev.innerHTML = ''; csvParsed = []; document.getElementById('csv-import-btn').disabled = true; return; }
+
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    const sep = lines[0].includes(';') ? ';' : ',';
+
+    csvParsed = [];
+    const errors = [];
+
+    lines.forEach((line, i) => {
+        const cols = line.split(sep).map(c => c.trim().replace(/^"|"$/g, ''));
+        const rawDate = cols[colDate] || '';
+        const desc = cols[colDesc] || '';
+        const rawAmt = (cols[colAmt] || '').replace(/\s/g,'').replace(',', '.').replace(/[^\d.\-]/g, '');
+        const amount = parseFloat(rawAmt);
+
+        if (i === 0 && isNaN(amount)) return; // skip header
+
+        const date = parseCsvDate(rawDate, dateFmt);
+        if (!date.match(/^\d{4}-\d{2}-\d{2}/) || isNaN(amount)) {
+            errors.push(`Linje ${i+1}: ugyldig dato/beløp`);
+            return;
+        }
+        csvParsed.push({ date, description: desc, amount });
+    });
+
+    document.getElementById('csv-import-btn').disabled = csvParsed.length === 0;
+    document.getElementById('csv-status').textContent = `${csvParsed.length} transaksjoner funnet${errors.length ? ', ' + errors.length + ' feil' : ''}`;
+
+    const sample = csvParsed.slice(0, 8);
+    prev.innerHTML = `<table style="font-size:12px">
+        <thead><tr><th>Dato</th><th>Beskrivelse</th><th style="text-align:right">Beløp</th></tr></thead>
+        <tbody>${sample.map(r => `<tr>
+            <td>${r.date}</td>
+            <td>${r.description}</td>
+            <td style="text-align:right" class="${r.amount >= 0 ? 'pos' : 'neg'}">${fmt(r.amount)}</td>
+        </tr>`).join('')}</tbody>
+    </table>${csvParsed.length > 8 ? `<div style="font-size:11px;color:var(--muted);padding-top:6px">...og ${csvParsed.length - 8} til</div>` : ''}`;
+}
+
+async function importCsv() {
+    if (!csvParsed.length) return;
+    const accountId = document.getElementById('csv-account').value || null;
+    const btn = document.getElementById('csv-import-btn');
+    btn.disabled = true;
+    document.getElementById('csv-status').textContent = 'Importerer…';
+
+    for (const t of csvParsed) {
+        await fetch('/api/transactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                date: t.date,
+                description: t.description,
+                account_id: accountId,
+                amount: t.amount,
+                cost_type: 'variable',
+                necessary: false,
+                monthly: false,
+            })
+        });
+    }
+
+    document.getElementById('csv-status').textContent = `✓ ${csvParsed.length} transaksjoner importert`;
+    setTimeout(closeCsvModal, 1500);
+    if (currentTab === 'transactions') loadTransactions();
+    if (currentTab === 'overview') loadOverview();
+}
+
+// ── Mark-to-Market ──
+let mktAccId = null;
+
+function openMktModal(id, name, balance, deposits) {
+    mktAccId = id;
+    document.getElementById('mktval-title').textContent = 'Oppdater: ' + name;
+    document.getElementById('mktval-balance').value = balance;
+    document.getElementById('mktval-deposits').value = deposits;
+    document.getElementById('mktval-modal').classList.add('open');
+}
+
+function closeMktModal() {
+    document.getElementById('mktval-modal').classList.remove('open');
+    mktAccId = null;
+}
+
+async function saveMktVal() {
+    const balance = parseFloat(document.getElementById('mktval-balance').value);
+    const deposits = parseFloat(document.getElementById('mktval-deposits').value) || 0;
+    if (isNaN(balance)) { alert('Ugyldig beløp'); return; }
+    await fetch(`/api/accounts/${mktAccId}/mark-to-market`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ balance, total_deposited: deposits })
+    });
+    closeMktModal();
+    loadOverview();
+}
+
+// ── Historikk ──
+function populateSnapshotMonths() {
+    const sel = document.getElementById('snapshot-month');
+    const now = new Date();
+    sel.innerHTML = '';
+    for (let i = 0; i < 13; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const label = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+        sel.innerHTML += `<option value="${val}">${label}</option>`;
+    }
+}
+
+async function saveSnapshot() {
+    const month = document.getElementById('snapshot-month').value;
+    await fetch('/api/snapshots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month })
+    });
+    loadHistorikk();
+}
+
+async function deleteSnapshot(month) {
+    if (!confirm(`Slette snapshot for ${month}?`)) return;
+    await fetch(`/api/snapshots/${encodeURIComponent(month)}`, { method: 'DELETE' });
+    loadHistorikk();
+}
+
+async function loadHistorikk() {
+    const [snapRes, trendRes] = await Promise.all([
+        fetch('/api/snapshots'),
+        fetch('/api/category-trends')
+    ]);
+    const snapshots = await snapRes.json();
+    const trends = await trendRes.json();
+    renderSnapshotTable(snapshots);
+    renderCategoryTrends(trends);
+    renderNetWorthChart(snapshots);
+    renderNetWorthTable(snapshots);
+}
+
+function renderSnapshotTable(snapshots) {
+    const el = document.getElementById('snapshot-table');
+    if (!snapshots.length) {
+        el.innerHTML = '<div class="empty">Ingen lagrede måneder ennå.</div>';
+        return;
+    }
+    const months = [...new Set(snapshots.map(s => s.month))].sort().reverse();
+    const accounts = [...new Set(snapshots.map(s => s.account_name))].sort();
+    const map = {};
+    snapshots.forEach(s => { map[s.month + '|' + s.account_name] = s.balance; });
+
+    let html = `<table><thead><tr><th>Konto</th>
+        ${months.map(m => `<th style="text-align:right">${m}</th>`).join('')}
+    </tr></thead><tbody>`;
+
+    accounts.forEach(acc => {
+        html += `<tr><td>${acc}</td>`;
+        months.forEach((m, i) => {
+            const bal = map[m + '|' + acc];
+            const prev = i < months.length - 1 ? map[months[i+1] + '|' + acc] : undefined;
+            let delta = '';
+            if (bal !== undefined && prev !== undefined) {
+                const d = bal - prev;
+                delta = `<span class="delta ${d >= 0 ? 'pos' : 'neg'}">${d >= 0 ? '+' : ''}${fmt(d)}</span>`;
+            }
+            html += `<td style="text-align:right">${bal !== undefined ? fmt(bal) + delta : '—'}</td>`;
+        });
+        html += '</tr>';
+    });
+
+    // Total row
+    html += `<tr style="font-weight:600;border-top:1px solid var(--border)"><td>Total</td>`;
+    months.forEach((m, i) => {
+        const tot = accounts.reduce((s, acc) => s + (map[m + '|' + acc] || 0), 0);
+        const prev = i < months.length - 1 ? accounts.reduce((s, acc) => s + (map[months[i+1] + '|' + acc] || 0), 0) : undefined;
+        let delta = '';
+        if (prev !== undefined) {
+            const d = tot - prev;
+            delta = `<span class="delta ${d >= 0 ? 'pos' : 'neg'}">${d >= 0 ? '+' : ''}${fmt(d)}</span>`;
+        }
+        html += `<td style="text-align:right">${fmt(tot)}${delta}</td>`;
+    });
+    html += '</tr></tbody></table>';
+
+    html += `<div class="snap-del-row">`;
+    months.forEach(m => {
+        html += `<button class="btn-sm" onclick="deleteSnapshot('${m}')">Slett ${m}</button>`;
+    });
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+function renderCategoryTrends(trends) {
+    const el = document.getElementById('category-trends-table');
+    if (!trends.length) { el.innerHTML = '<div class="empty">Ingen transaksjoner.</div>'; return; }
+
+    const months = [...new Set(trends.map(t => t.month))].sort().reverse().slice(0, 6);
+    const categories = [...new Set(trends.map(t => t.category))];
+    const map = {};
+    const r3map = {};
+    trends.forEach(t => {
+        map[t.month + '|' + t.category] = t.expenses;
+        r3map[t.month + '|' + t.category] = t.rolling_3m;
+    });
+
+    const sorted = categories.map(c => ({
+        c, total: months.reduce((s, m) => s + (map[m + '|' + c] || 0), 0)
+    })).filter(x => x.total > 0).sort((a, b) => b.total - a.total);
+
+    const latestMonth = months[0] || '';
+
+    let html = `<table><thead><tr><th>Kategori</th>
+        ${months.map((m, i) => `<th style="text-align:right">${m}${i === 0 ? '<br><span style="font-size:10px;color:var(--muted)">3mnd snitt</span>' : ''}</th>`).join('')}
+    </tr></thead><tbody>`;
+
+    sorted.forEach(({ c }) => {
+        html += `<tr><td>${c}</td>`;
+        months.forEach((m, i) => {
+            const v = map[m + '|' + c];
+            const r = r3map[m + '|' + c];
+            if (i === 0 && v) {
+                html += `<td style="text-align:right">${fmt(v)}<br><span style="font-size:10px;color:var(--muted)">${fmt(r)}</span></td>`;
+            } else {
+                html += `<td style="text-align:right">${v ? fmt(v) : '—'}</td>`;
+            }
+        });
+        html += '</tr>';
+    });
+
+    html += `<tr style="font-weight:600;border-top:1px solid var(--border)"><td>Total</td>`;
+    months.forEach(m => {
+        const tot = sorted.reduce((s, { c }) => s + (map[m + '|' + c] || 0), 0);
+        html += `<td style="text-align:right">${fmt(tot)}</td>`;
+    });
+    html += '</tr></tbody></table>';
+    el.innerHTML = html;
+}
+
+// ── Init ──
+(async () => {
+    document.getElementById('month-label').textContent = monthStr(overviewMonth);
+    document.getElementById('txn-month-label').textContent = monthStr(txnMonth);
+    document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
+    reconMonth = new Date();
+    populateSnapshotMonths();
+    await loadOverview();
+})();
+</script>
+</body>
+</html>
