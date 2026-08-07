@@ -114,9 +114,9 @@
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 10px 14px;
+            padding: 14px 18px;
             flex: 1 1 0;
-            min-width: 100px;
+            min-width: 120px;
             white-space: nowrap;
             cursor: pointer;
             transition: border-color 0.15s;
@@ -125,8 +125,8 @@
         .stat-card:hover { border-color: var(--accent); }
         .stat-card.active { border-color: var(--accent); background: rgba(59,130,246,.08); }
 
-        .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px; }
-        .stat-value { font-size: 15px; font-weight: 700; }
+        .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 6px; }
+        .stat-value { font-size: 22px; font-weight: 700; color: var(--text); }
         .stat-value.green { color: var(--green); }
         .stat-value.red { color: var(--red); }
 
@@ -243,6 +243,21 @@
         .pos { color: var(--green); }
         .neg { color: var(--red); }
 
+        .expand-row { cursor: pointer; }
+        .chevron-cell { width: 18px; color: var(--muted); font-size: 10px; }
+        .detail-row td { background: rgba(26,34,53,.4); padding: 16px 20px; }
+
+        .chg-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 4px; }
+        .chg-item { text-align: center; }
+        .chg-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+        .chg-item .pos, .chg-item .neg { font-size: 14px; font-weight: 600; }
+
+        .news-list { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+        .news-item { display: block; text-decoration: none; color: var(--text); }
+        .news-item:hover .news-title { color: var(--accent); }
+        .news-title { font-size: 13px; font-weight: 500; }
+        .news-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
         .section-heading { font-size: 14px; font-weight: 600; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 
         .collapsible { display: none; }
@@ -358,6 +373,14 @@
 
         /* Net worth chart */
         .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; position: relative; height: 280px; }
+
+        /* Lotteri tab: brighter labels/headers than the app default so nothing blends into the background */
+        #tab-lotteri .card-title,
+        #tab-lotteri th,
+        #tab-lotteri .form-group label,
+        #tab-lotteri .stat-label {
+            color: #94a3b8;
+        }
     </style>
 </head>
 <body>
@@ -498,6 +521,47 @@
     </div>
 </div>
 
+<div id="stock-edit-modal" class="modal-overlay">
+    <div class="modal-box" style="max-width:420px">
+        <div class="modal-header">
+            <div class="modal-title">Rediger posisjon</div>
+            <button class="modal-close" onclick="closeStockEditModal()">×</button>
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr">
+            <div class="form-group">
+                <label>Ticker</label>
+                <input type="text" id="stock-edit-ticker">
+            </div>
+            <div class="form-group">
+                <label>Navn (valgfritt)</label>
+                <input type="text" id="stock-edit-name">
+            </div>
+            <div class="form-group">
+                <label>Antall</label>
+                <input type="number" id="stock-edit-shares" step="0.0001">
+            </div>
+            <div class="form-group">
+                <label>Snittkurs</label>
+                <input type="number" id="stock-edit-avgprice" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Valuta</label>
+                <select id="stock-edit-currency">
+                    <option value="NOK">NOK</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="SEK">SEK</option>
+                    <option value="DKK">DKK</option>
+                </select>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="btn" onclick="saveStockEdit()">Lagre</button>
+            <button class="btn-ghost" onclick="closeStockEditModal()" style="margin-bottom:0">Avbryt</button>
+        </div>
+    </div>
+</div>
+
 <div class="header">
     <h1>Økonomi</h1>
     <div class="tabs">
@@ -505,6 +569,8 @@
         <button class="tab-btn" data-tab="transactions" onclick="switchTab('transactions')">Transaksjoner</button>
         <button class="tab-btn" data-tab="budsjett" onclick="switchTab('budsjett')">Budsjett</button>
         <button class="tab-btn" data-tab="historikk" onclick="switchTab('historikk')">Historikk</button>
+        <button class="tab-btn" data-tab="investeringer" onclick="switchTab('investeringer')">Investeringer</button>
+        <button class="tab-btn" data-tab="lotteri" onclick="switchTab('lotteri')">Lotteri</button>
         <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">Innstillinger</button>
     </div>
 </div>
@@ -968,6 +1034,210 @@
         </div>
     </div>
 
+    <!-- ── INVESTERINGER ── -->
+    <div id="tab-investeringer" class="tab-content">
+
+        <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                <div class="section-heading" style="margin-bottom:0">Aksjer</div>
+                <div style="text-align:right">
+                    <div style="font-size:20px;font-weight:700" id="stocks-total-value">—</div>
+                    <div id="stocks-total-gain" style="font-size:12px"></div>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn-ghost" onclick="toggleForm('add-stock-form', this)">
+                    <span>+</span> Legg til aksje
+                </button>
+                <button class="btn-ghost" onclick="loadStocksOverview(true)">
+                    <span>&#8635;</span> Oppdater kurser
+                </button>
+            </div>
+            <div id="add-stock-form" class="collapsible">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Ticker</label>
+                        <input type="text" id="stock-ticker" placeholder="f.eks. EQNR.OL, AAPL">
+                    </div>
+                    <div class="form-group">
+                        <label>Navn (valgfritt)</label>
+                        <input type="text" id="stock-name" placeholder="Hentes automatisk hvis tomt">
+                    </div>
+                    <div class="form-group">
+                        <label>Antall</label>
+                        <input type="number" id="stock-shares" placeholder="0" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label>Snittkurs (kjøpt for)</label>
+                        <input type="number" id="stock-avgprice" placeholder="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Valuta</label>
+                        <select id="stock-currency">
+                            <option value="NOK">NOK</option>
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="SEK">SEK</option>
+                            <option value="DKK">DKK</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="addStock()">Legg til</button>
+                <div style="margin-bottom:16px"></div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Ticker</th><th>Navn</th>
+                        <th style="text-align:right">Antall</th>
+                        <th style="text-align:right">Snittkurs</th>
+                        <th style="text-align:right">Kurs</th>
+                        <th style="text-align:right">Verdi</th>
+                        <th style="text-align:right">Gevinst/tap</th><th></th>
+                    </tr>
+                </thead>
+                <tbody id="stocks-body">
+                    <tr><td colspan="9" class="empty">Laster…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                <div class="section-heading" style="margin-bottom:0">Krypto (CoinTracking)</div>
+                <div style="text-align:right">
+                    <div style="font-size:20px;font-weight:700" id="crypto-total-value">—</div>
+                    <div id="crypto-total-pnl" style="font-size:12px"></div>
+                    <div id="crypto-updated" style="font-size:11px;color:var(--muted)"></div>
+                </div>
+            </div>
+
+            <button class="btn-ghost" onclick="loadCrypto(true)">
+                <span>&#8635;</span> Oppdater nå
+            </button>
+
+            <table style="margin-top:12px">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Coin</th>
+                        <th style="text-align:right">Beholdning</th>
+                        <th style="text-align:right">Kurs</th>
+                        <th style="text-align:right">Verdi</th>
+                        <th style="text-align:right">24t</th>
+                    </tr>
+                </thead>
+                <tbody id="crypto-body">
+                    <tr><td colspan="6" class="empty">Laster…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <div class="section-heading">Porteføljeverdi over tid (krypto)</div>
+            <div style="position:relative;height:240px">
+                <canvas id="crypto-history-chart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ── LOTTERI ── -->
+    <div id="tab-lotteri" class="tab-content">
+
+        <div class="card">
+            <div class="section-heading" style="display:flex;align-items:center;justify-content:space-between">
+                <span>Shuffle.com Lotteri</span>
+                <div class="inner-tabs" id="lottery-year-toggle" style="margin:0"></div>
+            </div>
+            <div class="stat-grid" id="lottery-stats"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Registrer trekning</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                <div class="form-group" style="flex:1;min-width:150px">
+                    <label>Dato</label>
+                    <input type="date" id="lottery-date" style="width:100%">
+                </div>
+                <div class="form-group" style="flex:1;min-width:120px">
+                    <label>Gevinst (USD)</label>
+                    <input type="number" id="lottery-amount" placeholder="0.00" step="0.01" style="width:100%">
+                </div>
+                <div class="form-group" style="flex:1;min-width:120px">
+                    <label>Billetter</label>
+                    <input type="number" id="lottery-tickets" placeholder="Samme som forrige" step="1" style="width:100%">
+                </div>
+                <div class="form-group" style="flex:1;min-width:120px">
+                    <label>Vinnende billetter</label>
+                    <input type="number" id="lottery-winning-tickets" placeholder="0" step="1" style="width:100%">
+                </div>
+                <button class="btn" onclick="addLotteryEntry()" style="margin-bottom:0;align-self:flex-end">Legg til</button>
+            </div>
+        </div>
+
+        <div class="inner-tabs">
+            <button class="inner-tab active" id="lottery-view-cum" onclick="setLotteryChartView('cumulative', this)">Kumulativt</button>
+            <button class="inner-tab" id="lottery-view-weekly" onclick="setLotteryChartView('weekly', this)">Per uke</button>
+            <button class="inner-tab" id="lottery-view-tickets" onclick="setLotteryChartView('tickets', this)">Billetter</button>
+        </div>
+        <div class="chart-card">
+            <canvas id="lottery-chart"></canvas>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Ledger</div>
+            <table>
+                <thead><tr>
+                    <th>Uke</th><th>Dato</th>
+                    <th style="text-align:right">Gevinst</th>
+                    <th style="text-align:right">Kumulativt</th>
+                    <th style="text-align:right">Billetter</th>
+                    <th style="text-align:right">Vunnet</th>
+                    <th style="text-align:right">% vunnet</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="lottery-body">
+                    <tr><td colspan="8" class="empty">Laster…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<div id="lottery-edit-modal" class="modal-overlay">
+    <div class="modal-box" style="max-width:360px">
+        <div class="modal-header">
+            <div class="modal-title">Rediger trekning</div>
+            <button class="modal-close" onclick="closeLotteryEditModal()">×</button>
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="form-group">
+                <label>Dato</label>
+                <input type="date" id="lottery-edit-date">
+            </div>
+            <div class="form-group">
+                <label>Gevinst (USD)</label>
+                <input type="number" id="lottery-edit-amount" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Billetter <span style="opacity:.6">(tomt = samme som forrige)</span></label>
+                <input type="number" id="lottery-edit-tickets" step="1">
+            </div>
+            <div class="form-group">
+                <label>Vinnende billetter</label>
+                <input type="number" id="lottery-edit-winning-tickets" step="1">
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="btn" onclick="saveLotteryEdit()">Lagre</button>
+            <button class="btn-ghost" onclick="closeLotteryEditModal()" style="margin-bottom:0">Avbryt</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -987,6 +1257,12 @@ let editDir = 'expense';
 let editCostType = 'variable';
 let editNec = true;
 
+let lotteryEntries = [];
+let allLotteryEntries = [];
+let lotteryYearFilter = '';
+let lotteryEditId = null;
+let lotteryChartView = 'cumulative';
+
 // ── Tabs ──
 function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -996,11 +1272,28 @@ function switchTab(tab) {
         if (btn.dataset.tab === tab) btn.classList.add('active');
     });
     currentTab = tab;
+    history.replaceState(null, '', '#' + tab);
     if (tab === 'overview') loadOverview();
     if (tab === 'transactions') loadTransactions();
     if (tab === 'budsjett') loadBudsjett();
     if (tab === 'historikk') loadHistorikk();
+    if (tab === 'investeringer') loadInvesteringer();
+    if (tab === 'lotteri') loadLotteri();
     if (tab === 'settings') loadSettings();
+}
+
+// Allows an embedding page (e.g. a dashboard hub) to drive tab selection
+// via the iframe's URL hash, without a full reload.
+window.addEventListener('hashchange', () => {
+    const tab = location.hash.replace('#', '');
+    if (tab) switchTab(tab);
+});
+
+// When embedded in an iframe (e.g. the dashboard hub), the hub's own sidebar
+// handles tab switching, so hide this page's own tab bar to avoid duplicate controls.
+if (window.self !== window.top) {
+    const tabsEl = document.querySelector('.tabs');
+    if (tabsEl) tabsEl.style.display = 'none';
 }
 
 function toggleForm(id) {
@@ -1107,6 +1400,9 @@ function setTxnAll() {
 // ── Format ──
 const fmt = (n) =>
     new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK', maximumFractionDigits: 0 }).format(n);
+
+const fmtUsd = (n) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
 // ── Badges ──
 function typeBadge(ct) {
@@ -2313,6 +2609,584 @@ function renderCategoryTrends(trends) {
     el.innerHTML = html;
 }
 
+// ── Investeringer ──
+async function loadInvesteringer() {
+    loadStocksOverview();
+    loadCrypto();
+    loadCryptoHistoryChart();
+}
+
+let _cryptoHistChart = null;
+
+async function loadCryptoHistoryChart() {
+    const canvas = document.getElementById('crypto-history-chart');
+    if (!canvas) return;
+    try {
+        const res = await fetch('/api/crypto/history-chart');
+        if (!res.ok) return;
+        const data = await res.json();
+        const labels = data.points.map(p => new Date(p.ts * 1000).toLocaleDateString('nb-NO', { year: 'numeric', month: 'short' }));
+        const values = data.points.map(p => p.value_nok);
+
+        if (_cryptoHistChart) _cryptoHistChart.destroy();
+        _cryptoHistChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59,130,246,.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.15,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 12 }, grid: { color: '#1e2d45' } },
+                    y: { ticks: { color: '#64748b', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: '#1e2d45' } }
+                }
+            }
+        });
+    } catch (e) {
+        // silent — chart just won't render
+    }
+}
+
+async function loadStocksOverview(force) {
+    if (force) {
+        Object.keys(stockDetailsCache).forEach(k => delete stockDetailsCache[k]);
+    }
+    const res = await fetch('/api/stocks/overview' + (force ? '?refresh=1' : ''));
+    const data = await res.json();
+    renderStocksTable(data.holdings);
+    document.getElementById('stocks-total-value').textContent = fmt(data.total_value_nok);
+    const gainEl = document.getElementById('stocks-total-gain');
+    if (data.total_cost_nok) {
+        gainEl.textContent = `${data.total_gain_nok >= 0 ? '+' : ''}${fmt(data.total_gain_nok)} (${data.total_gain_pct.toFixed(1)}%)`;
+        gainEl.className = data.total_gain_nok >= 0 ? 'pos' : 'neg';
+    } else {
+        gainEl.textContent = '';
+        gainEl.className = '';
+    }
+}
+
+const stockDetailsCache = {};
+
+function renderStocksTable(holdings) {
+    const tbody = document.getElementById('stocks-body');
+    if (!holdings.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty">Ingen aksjer lagt til</td></tr>';
+        return;
+    }
+    tbody.innerHTML = holdings.map(h => {
+        const gainCls = h.gain_nok >= 0 ? 'pos' : 'neg';
+        const priceStr = h.price != null
+            ? `${h.price.toFixed(2)} ${h.quote_currency || ''}`
+            : (h.error ? '<span class="neg">Feil</span>' : '—');
+        return `
+        <tr class="expand-row" onclick='toggleStockDetail(${h.id}, ${JSON.stringify(h.ticker)}, ${JSON.stringify(h.name || "")})'>
+            <td class="chevron-cell"><span id="stock-chevron-${h.id}">&#9654;</span></td>
+            <td>${h.ticker}</td>
+            <td>${h.name || ''}</td>
+            <td style="text-align:right">${h.shares}</td>
+            <td style="text-align:right">${h.avg_price.toFixed(2)} ${h.currency}</td>
+            <td style="text-align:right">${priceStr}</td>
+            <td style="text-align:right">${fmt(h.market_value_nok)}</td>
+            <td style="text-align:right" class="${gainCls}">${h.gain_nok >= 0 ? '+' : ''}${fmt(h.gain_nok)} (${h.gain_pct.toFixed(1)}%)</td>
+            <td style="display:flex;gap:6px" onclick="event.stopPropagation()">
+                <button class="btn-sm" onclick='openStockEditModal(${h.id}, ${JSON.stringify(h.ticker)}, ${JSON.stringify(h.name || "")}, ${h.shares}, ${h.avg_price}, ${JSON.stringify(h.currency)})'>Rediger</button>
+                <button class="btn-sm" onclick="deleteStock(${h.id})">Slett</button>
+            </td>
+        </tr>
+        <tr id="stock-detail-${h.id}" class="detail-row" style="display:none">
+            <td colspan="9" id="stock-detail-content-${h.id}"></td>
+        </tr>`;
+    }).join('');
+}
+
+function changeBadge(val) {
+    if (val === null || val === undefined) return '<span style="color:var(--muted)">–</span>';
+    const cls = val >= 0 ? 'pos' : 'neg';
+    return `<span class="${cls}">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</span>`;
+}
+
+function renderChgGrid(c) {
+    return `<div class="chg-grid">
+        <div class="chg-item"><div class="chg-label">24t</div>${changeBadge(c.change24h)}</div>
+        <div class="chg-item"><div class="chg-label">7d</div>${changeBadge(c.change7d)}</div>
+        <div class="chg-item"><div class="chg-label">30d</div>${changeBadge(c.change30d)}</div>
+        <div class="chg-item"><div class="chg-label">1å</div>${changeBadge(c.change1y)}</div>
+    </div>`;
+}
+
+async function toggleStockDetail(id, ticker, name) {
+    const row = document.getElementById('stock-detail-' + id);
+    const chevron = document.getElementById('stock-chevron-' + id);
+    const isOpen = row.style.display !== 'none';
+    if (isOpen) {
+        row.style.display = 'none';
+        chevron.innerHTML = '&#9654;';
+        return;
+    }
+    row.style.display = 'table-row';
+    chevron.innerHTML = '&#9660;';
+    const contentEl = document.getElementById('stock-detail-content-' + id);
+
+    if (stockDetailsCache[ticker]) {
+        contentEl.innerHTML = renderStockDetail(stockDetailsCache[ticker]);
+        return;
+    }
+    contentEl.innerHTML = '<div class="empty">Laster…</div>';
+    try {
+        const res = await fetch(`/api/stocks/details/${encodeURIComponent(ticker)}?name=${encodeURIComponent(name || '')}`);
+        const data = await res.json();
+        stockDetailsCache[ticker] = data;
+        contentEl.innerHTML = renderStockDetail(data);
+    } catch (e) {
+        contentEl.innerHTML = '<div class="empty">Kunne ikke hente detaljer</div>';
+    }
+}
+
+function renderStockDetail(data) {
+    let html = renderChgGrid(data.changes || {});
+    if (data.news && data.news.length) {
+        html += '<div class="news-list">' + data.news.map(n => `
+            <a class="news-item" href="${n.link}" target="_blank" rel="noopener noreferrer">
+                <div class="news-title">${n.title}</div>
+                <div class="news-meta">${n.source || ''}${n.published ? ' · ' + new Date(n.published).toLocaleDateString('nb-NO') : ''}</div>
+            </a>`).join('') + '</div>';
+    } else {
+        html += '<div class="empty" style="padding:12px 0 0">Ingen nyheter siste 7 dager</div>';
+    }
+    return html;
+}
+
+async function addStock() {
+    const ticker = document.getElementById('stock-ticker').value.trim().toUpperCase();
+    const name = document.getElementById('stock-name').value.trim();
+    const shares = parseFloat(document.getElementById('stock-shares').value);
+    const avgPrice = parseFloat(document.getElementById('stock-avgprice').value);
+    const currency = document.getElementById('stock-currency').value;
+    if (!ticker || !shares || !avgPrice) { alert('Ticker, antall og snittkurs er påkrevd.'); return; }
+
+    await fetch('/api/stocks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker, name, shares, avg_price: avgPrice, currency })
+    });
+    document.getElementById('stock-ticker').value = '';
+    document.getElementById('stock-name').value = '';
+    document.getElementById('stock-shares').value = '';
+    document.getElementById('stock-avgprice').value = '';
+    loadStocksOverview();
+}
+
+async function deleteStock(id) {
+    if (!confirm('Slette denne posisjonen?')) return;
+    await fetch(`/api/stocks/${id}`, { method: 'DELETE' });
+    loadStocksOverview();
+}
+
+let stockEditId = null;
+
+function openStockEditModal(id, ticker, name, shares, avgPrice, currency) {
+    stockEditId = id;
+    document.getElementById('stock-edit-ticker').value = ticker;
+    document.getElementById('stock-edit-name').value = name;
+    document.getElementById('stock-edit-shares').value = shares;
+    document.getElementById('stock-edit-avgprice').value = avgPrice;
+    document.getElementById('stock-edit-currency').value = currency;
+    document.getElementById('stock-edit-modal').classList.add('open');
+}
+
+function closeStockEditModal() {
+    document.getElementById('stock-edit-modal').classList.remove('open');
+    stockEditId = null;
+}
+
+async function saveStockEdit() {
+    const ticker = document.getElementById('stock-edit-ticker').value.trim().toUpperCase();
+    const name = document.getElementById('stock-edit-name').value.trim();
+    const shares = parseFloat(document.getElementById('stock-edit-shares').value);
+    const avgPrice = parseFloat(document.getElementById('stock-edit-avgprice').value);
+    const currency = document.getElementById('stock-edit-currency').value;
+    if (!ticker || !shares || !avgPrice) { alert('Ticker, antall og snittkurs er påkrevd.'); return; }
+
+    await fetch(`/api/stocks/${stockEditId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker, name, shares, avg_price: avgPrice, currency })
+    });
+    closeStockEditModal();
+    loadStocksOverview(true);
+}
+
+const cryptoDetailsCache = {};
+
+async function loadCrypto(force) {
+    if (force) {
+        Object.keys(cryptoDetailsCache).forEach(k => delete cryptoDetailsCache[k]);
+    }
+    const box = document.getElementById('crypto-body');
+    const res = await fetch('/api/crypto' + (force ? '?refresh=1' : ''));
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        box.innerHTML = `<tr><td colspan="6" class="empty">${err.error || 'Kunne ikke hente kryptodata'}</td></tr>`;
+        return;
+    }
+    const data = await res.json();
+    document.getElementById('crypto-total-value').textContent = fmt(data.total_value_nok);
+    const updatedStr = data.fetched_at ? new Date(data.fetched_at * 1000).toLocaleTimeString('nb-NO') : '—';
+    document.getElementById('crypto-updated').textContent =
+        `Oppdatert ${updatedStr}` + (data.stale_error ? ' (siste vellykkede — ny henting feilet)' : '');
+
+    const pnlEl = document.getElementById('crypto-total-pnl');
+    if (data.total_unrealized_nok !== null && data.total_unrealized_nok !== undefined) {
+        const u = data.total_unrealized_nok;
+        pnlEl.innerHTML = `<span class="${u >= 0 ? 'pos' : 'neg'}">Urealisert: ${u >= 0 ? '+' : ''}${fmt(u)}</span>`;
+    } else {
+        pnlEl.textContent = '';
+    }
+
+    if (!data.coins.length) {
+        box.innerHTML = '<tr><td colspan="6" class="empty">Ingen beholdning over terskel</td></tr>';
+        return;
+    }
+    box.innerHTML = data.coins.map(c => {
+        const chCls = c.change24h >= 0 ? 'pos' : 'neg';
+        const pnlArgs = `'${c.coin}', ${c.change24h}, ${c.change7d}, ${c.change30d}, ${c.cost}, ${c.unrealized}, ${c.realized}, ${data.fx_to_nok}`;
+        return `
+        <tr class="expand-row" onclick="toggleCryptoDetail(${pnlArgs})">
+            <td class="chevron-cell"><span id="crypto-chevron-${c.coin}">&#9654;</span></td>
+            <td>${c.coin}</td>
+            <td style="text-align:right">${c.amount}</td>
+            <td style="text-align:right">$${c.price.toFixed(c.price < 1 ? 4 : 2)}</td>
+            <td style="text-align:right">${fmt(c.value * data.fx_to_nok)}</td>
+            <td style="text-align:right" class="${chCls}">${c.change24h >= 0 ? '+' : ''}${c.change24h.toFixed(1)}%</td>
+        </tr>
+        <tr id="crypto-detail-${c.coin}" class="detail-row" style="display:none">
+            <td colspan="6" id="crypto-detail-content-${c.coin}"></td>
+        </tr>`;
+    }).join('');
+}
+
+async function toggleCryptoDetail(coin, change24h, change7d, change30d, cost, unrealized, realized, fxToNok) {
+    const row = document.getElementById('crypto-detail-' + coin);
+    const chevron = document.getElementById('crypto-chevron-' + coin);
+    const isOpen = row.style.display !== 'none';
+    if (isOpen) {
+        row.style.display = 'none';
+        chevron.innerHTML = '&#9654;';
+        return;
+    }
+    row.style.display = 'table-row';
+    chevron.innerHTML = '&#9660;';
+    const contentEl = document.getElementById('crypto-detail-content-' + coin);
+
+    let change1y = cryptoDetailsCache[coin];
+    if (change1y === undefined) {
+        contentEl.innerHTML = '<div class="empty">Laster…</div>';
+        try {
+            const res = await fetch(`/api/crypto/details/${encodeURIComponent(coin)}`);
+            const data = await res.json();
+            change1y = data.change1y;
+            cryptoDetailsCache[coin] = change1y;
+        } catch (e) {
+            contentEl.innerHTML = '<div class="empty">Kunne ikke hente detaljer</div>';
+            return;
+        }
+    }
+    let html = renderChgGrid({ change24h, change7d, change30d, change1y });
+    if (cost !== null && unrealized !== null) {
+        const uCls = unrealized >= 0 ? 'pos' : 'neg';
+        const rCls = realized >= 0 ? 'pos' : 'neg';
+        html += `<div class="news-list" style="flex-direction:row;justify-content:space-around;text-align:center">
+            <div><div class="chg-label">Kostpris</div>${fmt(cost * fxToNok)}</div>
+            <div><div class="chg-label">Urealisert</div><span class="${uCls}">${unrealized >= 0 ? '+' : ''}${fmt(unrealized * fxToNok)}</span></div>
+            <div><div class="chg-label">Realisert</div><span class="${rCls}">${realized >= 0 ? '+' : ''}${fmt(realized * fxToNok)}</span></div>
+        </div>`;
+    }
+    contentEl.innerHTML = html;
+}
+
+// ── Lotteri ──
+let _lotteryChart = null;
+
+function nextFriday(afterDate) {
+    const d = afterDate ? new Date(afterDate) : new Date();
+    d.setDate(d.getDate() + (afterDate ? 7 : (12 - d.getDay()) % 7 || 7));
+    return d;
+}
+
+async function loadLotteri() {
+    const entriesRes = await fetch('/api/lottery');
+    allLotteryEntries = await entriesRes.json();
+
+    populateLotteryYearFilter();
+    applyLotteryYearFilter();
+
+    const dateInput = document.getElementById('lottery-date');
+    const last = allLotteryEntries[allLotteryEntries.length - 1];
+    dateInput.value = nextFriday(last ? last.date : null).toISOString().split('T')[0];
+}
+
+function populateLotteryYearFilter() {
+    const years = [...new Set(allLotteryEntries.map(e => e.date.slice(0, 4)))].sort();
+    if (!['', ...years].includes(lotteryYearFilter)) lotteryYearFilter = '';
+
+    const toggle = document.getElementById('lottery-year-toggle');
+    const options = [...years.map(y => ({ val: y, label: y })), { val: '', label: 'Alle' }];
+    toggle.innerHTML = options.map(o =>
+        `<button class="inner-tab${o.val === lotteryYearFilter ? ' active' : ''}" onclick="setLotteryYearFilter('${o.val}')">${o.label}</button>`
+    ).join('');
+}
+
+function setLotteryYearFilter(year) {
+    lotteryYearFilter = year;
+    document.querySelectorAll('#lottery-year-toggle .inner-tab').forEach(b => {
+        b.classList.toggle('active', b.textContent === (year || 'Alle'));
+    });
+    applyLotteryYearFilter();
+}
+
+function applyLotteryYearFilter() {
+    lotteryEntries = lotteryYearFilter
+        ? allLotteryEntries.filter(e => e.date.startsWith(lotteryYearFilter))
+        : allLotteryEntries;
+
+    renderLotteryStats();
+    renderLotteryChart();
+    renderLotteryTable();
+}
+
+function renderLotteryStats() {
+    const amounts = lotteryEntries.map(e => e.amount);
+    const weeks = amounts.length;
+    const total = amounts.reduce((a, b) => a + b, 0);
+    const biggest = weeks ? Math.max(...amounts) : 0;
+    const average = weeks ? total / weeks : 0;
+
+    const winPcts = lotteryEntries.filter(e => e.win_pct !== null && e.win_pct !== undefined).map(e => e.win_pct);
+    const avgWinPct = winPcts.length ? winPcts.reduce((a, b) => a + b, 0) / winPcts.length : null;
+    const last = lotteryEntries[lotteryEntries.length - 1];
+    const currentTickets = last ? last.effective_tickets : null;
+
+    document.getElementById('lottery-stats').innerHTML = `
+        <div class="stat-card">
+            <div class="stat-label">Uker deltatt</div>
+            <div class="stat-value">${weeks}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Total gevinst</div>
+            <div class="stat-value green">${fmtUsd(total)}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Størst enkeltgevinst</div>
+            <div class="stat-value green">${fmtUsd(biggest)}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Snitt per uke</div>
+            <div class="stat-value">${fmtUsd(average)}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Billetter nå</div>
+            <div class="stat-value">${currentTickets !== null && currentTickets !== undefined ? currentTickets : '–'}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Snitt vinnerandel</div>
+            <div class="stat-value">${avgWinPct !== null ? avgWinPct.toFixed(1) + '%' : '–'}</div>
+        </div>
+    `;
+}
+
+function setLotteryChartView(view, btn) {
+    lotteryChartView = view;
+    document.getElementById('lottery-view-cum').classList.toggle('active', view === 'cumulative');
+    document.getElementById('lottery-view-weekly').classList.toggle('active', view === 'weekly');
+    document.getElementById('lottery-view-tickets').classList.toggle('active', view === 'tickets');
+    renderLotteryChart();
+}
+
+function renderLotteryChart() {
+    const canvas = document.getElementById('lottery-chart');
+    if (!canvas) return;
+    if (!lotteryEntries.length) { if (_lotteryChart) { _lotteryChart.destroy(); _lotteryChart = null; } return; }
+    const labels = lotteryEntries.map(e => e.date);
+    if (_lotteryChart) _lotteryChart.destroy();
+
+    if (lotteryChartView === 'weekly') {
+        const data = lotteryEntries.map(e => e.amount);
+        _lotteryChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    data,
+                    backgroundColor: 'rgba(59,130,246,.5)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#cbd5e1', font: { size: 12 }, maxTicksLimit: 12 }, grid: { color: '#1e2d45' } },
+                    y: { ticks: { color: '#cbd5e1', font: { size: 12 }, callback: v => fmtUsd(v) }, grid: { color: '#1e2d45' } }
+                }
+            }
+        });
+        return;
+    }
+
+    if (lotteryChartView === 'tickets') {
+        const data = lotteryEntries.map(e => e.effective_tickets);
+        _lotteryChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    data,
+                    stepped: true,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245,158,11,.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#cbd5e1', font: { size: 12 }, maxTicksLimit: 12 }, grid: { color: '#1e2d45' } },
+                    y: { ticks: { color: '#cbd5e1', font: { size: 12 } }, grid: { color: '#1e2d45' } }
+                }
+            }
+        });
+        return;
+    }
+
+    let cum = 0;
+    const data = lotteryEntries.map(e => { cum += e.amount; return cum; });
+    _lotteryChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                data,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,.1)',
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: true,
+                tension: 0.3,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#cbd5e1', font: { size: 12 }, maxTicksLimit: 12 }, grid: { color: '#1e2d45' } },
+                y: { ticks: { color: '#cbd5e1', font: { size: 12 }, callback: v => fmtUsd(v) }, grid: { color: '#1e2d45' } }
+            }
+        }
+    });
+}
+
+function renderLotteryTable() {
+    const body = document.getElementById('lottery-body');
+    if (!lotteryEntries.length) { body.innerHTML = '<tr><td colspan="8" class="empty">Ingen trekninger ennå</td></tr>'; return; }
+    let cum = 0;
+    const rows = lotteryEntries.map(e => {
+        cum += e.amount;
+        const tickets = e.effective_tickets !== null && e.effective_tickets !== undefined ? e.effective_tickets : '–';
+        const won = e.winning_tickets !== null && e.winning_tickets !== undefined ? e.winning_tickets : '–';
+        const pct = e.win_pct !== null && e.win_pct !== undefined ? e.win_pct.toFixed(1) + '%' : '–';
+        return `<tr>
+            <td>${e.week_number}</td>
+            <td>${e.date}</td>
+            <td style="text-align:right" class="pos">+${fmtUsd(e.amount)}</td>
+            <td style="text-align:right">${fmtUsd(cum)}</td>
+            <td style="text-align:right">${tickets}</td>
+            <td style="text-align:right">${won}</td>
+            <td style="text-align:right">${pct}</td>
+            <td style="white-space:nowrap">
+                <button class="btn-sm edit" onclick="openLotteryEditModal(${e.id})">✏</button>
+                <button class="btn-sm" onclick="deleteLotteryEntry(${e.id})" style="margin-left:4px">Slett</button>
+            </td>
+        </tr>`;
+    });
+    body.innerHTML = rows.reverse().join('');
+}
+
+async function addLotteryEntry() {
+    const date = document.getElementById('lottery-date').value;
+    const amount = parseFloat(document.getElementById('lottery-amount').value);
+    const ticketsRaw = document.getElementById('lottery-tickets').value;
+    const winningRaw = document.getElementById('lottery-winning-tickets').value;
+    if (!date || isNaN(amount)) { alert('Fyll inn dato og gevinst'); return; }
+    await fetch('/api/lottery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            date, amount,
+            tickets: ticketsRaw === '' ? null : parseInt(ticketsRaw, 10),
+            winning_tickets: winningRaw === '' ? null : parseInt(winningRaw, 10),
+        })
+    });
+    document.getElementById('lottery-amount').value = '';
+    document.getElementById('lottery-tickets').value = '';
+    document.getElementById('lottery-winning-tickets').value = '';
+    loadLotteri();
+}
+
+async function deleteLotteryEntry(id) {
+    if (!confirm('Slette denne trekningen? Senere ukenumre blir ikke justert.')) return;
+    await fetch(`/api/lottery/${id}`, { method: 'DELETE' });
+    loadLotteri();
+}
+
+function openLotteryEditModal(id) {
+    const e = lotteryEntries.find(x => x.id === id);
+    if (!e) return;
+    lotteryEditId = id;
+    document.getElementById('lottery-edit-date').value = e.date;
+    document.getElementById('lottery-edit-amount').value = e.amount;
+    document.getElementById('lottery-edit-tickets').value = e.tickets !== null && e.tickets !== undefined ? e.tickets : '';
+    document.getElementById('lottery-edit-winning-tickets').value = e.winning_tickets !== null && e.winning_tickets !== undefined ? e.winning_tickets : '';
+    document.getElementById('lottery-edit-modal').classList.add('open');
+}
+
+function closeLotteryEditModal() {
+    document.getElementById('lottery-edit-modal').classList.remove('open');
+    lotteryEditId = null;
+}
+
+async function saveLotteryEdit() {
+    const date = document.getElementById('lottery-edit-date').value;
+    const amount = parseFloat(document.getElementById('lottery-edit-amount').value);
+    const ticketsRaw = document.getElementById('lottery-edit-tickets').value;
+    const winningRaw = document.getElementById('lottery-edit-winning-tickets').value;
+    if (!date || isNaN(amount)) { alert('Fyll inn dato og gevinst'); return; }
+    await fetch(`/api/lottery/${lotteryEditId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            date, amount,
+            tickets: ticketsRaw === '' ? null : parseInt(ticketsRaw, 10),
+            winning_tickets: winningRaw === '' ? null : parseInt(winningRaw, 10),
+        })
+    });
+    closeLotteryEditModal();
+    loadLotteri();
+}
+
 // ── Init ──
 (async () => {
     document.getElementById('month-label').textContent = monthStr(overviewMonth);
@@ -2320,7 +3194,11 @@ function renderCategoryTrends(trends) {
     document.getElementById('txn-date').value = new Date().toISOString().split('T')[0];
     reconMonth = new Date();
     populateSnapshotMonths();
-    await loadOverview();
+    if (location.hash) {
+        switchTab(location.hash.replace('#', ''));
+    } else {
+        await loadOverview();
+    }
 })();
 </script>
 </body>
