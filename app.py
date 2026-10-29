@@ -9,7 +9,7 @@ import datetime
 import xml.etree.ElementTree as ET
 import requests
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
@@ -115,6 +115,23 @@ def init_db():
             amount REAL NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS crypto_trades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            coin_sold TEXT NOT NULL,
+            amount_sold REAL NOT NULL,
+            coin_bought TEXT NOT NULL,
+            amount_bought REAL NOT NULL,
+            note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS crypto_deposits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            amount REAL NOT NULL,
+            note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
     ''')
     conn.commit()
     # Migrate: ticket tracking for lottery. `tickets` is sticky - NULL means
@@ -138,6 +155,12 @@ def init_db():
     # Migrate: add total_deposited for investment tracking
     try:
         conn.execute('ALTER TABLE accounts ADD COLUMN total_deposited REAL DEFAULT 0')
+        conn.commit()
+    except Exception:
+        pass
+    # Migrate: add mtm_updated_at to track when balance/deposits were last updated
+    try:
+        conn.execute('ALTER TABLE accounts ADD COLUMN mtm_updated_at TIMESTAMP')
         conn.commit()
     except Exception:
         pass
@@ -489,7 +512,7 @@ def mark_to_market(id):
     data = request.json
     conn = get_db()
     conn.execute(
-        'UPDATE accounts SET balance=?, total_deposited=? WHERE id=?',
+        'UPDATE accounts SET balance=?, total_deposited=?, mtm_updated_at=CURRENT_TIMESTAMP WHERE id=?',
         (float(data['balance']), float(data.get('total_deposited', 0)), id)
     )
     conn.commit()
@@ -550,7 +573,7 @@ def get_category_trends():
     conn = get_db()
     rows = conn.execute('''
         SELECT strftime('%Y-%m', date) as month,
-               COALESCE(category, 'Ukategorisert') as category,
+               COALESCE(category, 'Uncategorized') as category,
                SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) as expenses,
                SUM(CASE WHEN amount >= 0 THEN amount ELSE 0 END) as income
         FROM transactions
@@ -997,6 +1020,35 @@ def delete_lottery_entry(id):
     return jsonify({'ok': True})
 
 
+@app.route('/api/lottery/export.csv', methods=['GET'])
+def export_lottery_csv():
+    """Ledger as CSV - same columns as the Ledger table (tickets resolved via carry-forward)."""
+    import csv, io
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM lottery_entries ORDER BY week_number').fetchall()
+    conn.close()
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(['Week', 'Date', 'Winnings (USD)', 'Cumulative (USD)', 'Tickets', 'Won', '% won'])
+    cum = 0.0
+    for e in _with_effective_tickets(rows):
+        cum += e['amount']
+        w.writerow([
+            e['week_number'],
+            e['date'],
+            f"{e['amount']:.2f}",
+            f"{cum:.2f}",
+            '' if e['effective_tickets'] is None else e['effective_tickets'],
+            '' if e['winning_tickets'] is None else e['winning_tickets'],
+            '' if e['win_pct'] is None else f"{e['win_pct']:.1f}",
+        ])
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=lottery_ledger.csv'},
+    )
+
+
 @app.route('/api/lottery/overview', methods=['GET'])
 def lottery_overview():
     conn = get_db()
@@ -1021,9 +1073,151 @@ def lottery_overview():
     })
 
 
+# ---------------------------------------------------------------------------
+# Shuffle coin trading ledger (funded by lottery winnings, traded in USDC)
+# ---------------------------------------------------------------------------
+# Trades store amount_sold and amount_bought directly (both sides of the
+# swap, as actually received) rather than a price -- simpler to enter since
+# you just copy the two amounts off the exchange after the trade executes.
+# Price (coin_bought's cost in coin_sold) is derived as amount_sold /
+# amount_bought wherever it's shown, purely for reference.
+
+@app.route('/api/crypto-deposits', methods=['GET'])
+def get_crypto_deposits():
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM crypto_deposits ORDER BY date, id').fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/crypto-deposits', methods=['POST'])
+def add_crypto_deposit():
+    data = request.json
+    conn = get_db()
+    conn.execute(
+        'INSERT INTO crypto_deposits (date, amount, note) VALUES (?, ?, ?)',
+        (data['date'], float(data['amount']), data.get('note') or None)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/crypto-deposits/<int:id>', methods=['PUT'])
+def update_crypto_deposit(id):
+    data = request.json
+    conn = get_db()
+    conn.execute(
+        'UPDATE crypto_deposits SET date=?, amount=?, note=? WHERE id=?',
+        (data['date'], float(data['amount']), data.get('note') or None, id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/crypto-deposits/<int:id>', methods=['DELETE'])
+def delete_crypto_deposit(id):
+    conn = get_db()
+    conn.execute('DELETE FROM crypto_deposits WHERE id=?', (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/crypto-trades', methods=['GET'])
+def get_crypto_trades():
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM crypto_trades ORDER BY date, id').fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/crypto-trades', methods=['POST'])
+def add_crypto_trade():
+    data = request.json
+    conn = get_db()
+    conn.execute(
+        'INSERT INTO crypto_trades (date, coin_sold, amount_sold, coin_bought, amount_bought, note) '
+        'VALUES (?, ?, ?, ?, ?, ?)',
+        (
+            data['date'],
+            data['coin_sold'].strip().upper(),
+            float(data['amount_sold']),
+            data['coin_bought'].strip().upper(),
+            float(data['amount_bought']),
+            data.get('note') or None,
+        )
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/crypto-trades/<int:id>', methods=['PUT'])
+def update_crypto_trade(id):
+    data = request.json
+    conn = get_db()
+    conn.execute(
+        'UPDATE crypto_trades SET date=?, coin_sold=?, amount_sold=?, coin_bought=?, amount_bought=?, note=? WHERE id=?',
+        (
+            data['date'],
+            data['coin_sold'].strip().upper(),
+            float(data['amount_sold']),
+            data['coin_bought'].strip().upper(),
+            float(data['amount_bought']),
+            data.get('note') or None,
+            id,
+        )
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/crypto-trades/<int:id>', methods=['DELETE'])
+def delete_crypto_trade(id):
+    conn = get_db()
+    conn.execute('DELETE FROM crypto_trades WHERE id=?', (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/crypto-trading/overview', methods=['GET'])
+def crypto_trading_overview():
+    """Replays deposits + trades in date order to produce a running coin
+    balance sheet. Deposits are tracked separately from trades specifically
+    so capital added from lottery winnings is never counted as trading
+    profit/loss — `net_deposited` vs each coin's balance is the whole point."""
+    conn = get_db()
+    deposits = [dict(r) for r in conn.execute('SELECT * FROM crypto_deposits ORDER BY date, id').fetchall()]
+    trades = [dict(r) for r in conn.execute('SELECT * FROM crypto_trades ORDER BY date, id').fetchall()]
+    conn.close()
+
+    balances: dict[str, float] = {}
+    for d in deposits:
+        balances['USDC'] = balances.get('USDC', 0.0) + d['amount']
+    for t in trades:
+        # Selling more of a coin than the ledger holds means it was held from
+        # before the ledger started (the opening trade) -- floor at 0 instead
+        # of going negative. USDC is always fully tracked via deposits.
+        remaining = balances.get(t['coin_sold'], 0.0) - t['amount_sold']
+        if t['coin_sold'] not in ('USDC', 'USDT', 'USD'):
+            remaining = max(0.0, remaining)
+        balances[t['coin_sold']] = remaining
+        balances[t['coin_bought']] = balances.get(t['coin_bought'], 0.0) + t['amount_bought']
+
+    return jsonify({
+        'total_deposited': sum(d['amount'] for d in deposits),
+        'trade_count': len(trades),
+        'balances': {k: v for k, v in balances.items() if abs(v) > 1e-9},
+    })
+
+
 def cointracking_call(method, extra=None):
     if not COINTRACKING_KEY or not COINTRACKING_SECRET:
-        return None, 'CoinTracking API-nøkkel er ikke konfigurert'
+        return None, 'CoinTracking API key is not configured'
     params = {'method': method, 'nonce': str(int(time.time() * 1000))}
     if extra:
         params.update(extra)
@@ -1041,7 +1235,7 @@ def cointracking_call(method, extra=None):
     except Exception as e:
         return None, str(e)
     if payload.get('success') != 1:
-        return None, payload.get('error') or 'Ukjent feil fra CoinTracking'
+        return None, payload.get('error') or 'Unknown error from CoinTracking'
     return payload, None
 
 
@@ -1106,7 +1300,7 @@ def get_crypto():
             _ct_cache['error'] = err
 
     if _ct_cache['data'] is None:
-        return jsonify({'error': _ct_cache['error'] or 'Ingen data ennå'}), 502
+        return jsonify({'error': _ct_cache['error'] or 'No data yet'}), 502
 
     return jsonify({
         **_ct_cache['data'],
@@ -1157,7 +1351,7 @@ def crypto_history_chart():
             _ct_hist_cache['error'] = err
 
     if _ct_hist_cache['data'] is None:
-        return jsonify({'error': _ct_hist_cache['error'] or 'Ingen data ennå'}), 502
+        return jsonify({'error': _ct_hist_cache['error'] or 'No data yet'}), 502
 
     return jsonify({
         **_ct_hist_cache['data'],
